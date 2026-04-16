@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import { Member } from '@/lib/types';
 
 export default function MembersPage() {
+  const router = useRouter();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -28,16 +31,21 @@ export default function MembersPage() {
 
   const filtered = members.filter(
     (member) =>
-      member.phone.includes(search) ||
+      member.phone_number.includes(search) ||
       member.name.toLowerCase().includes(search.toLowerCase()) ||
       member.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Members</h1>
-        <p className="text-muted-foreground mt-2">Manage member profiles and information</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Members</h1>
+          <p className="text-muted-foreground mt-2">Manage member profiles and information</p>
+        </div>
+        <Button onClick={() => router.push('/dashboard/members/import')}>
+          Import Members
+        </Button>
       </div>
 
       <div className="bg-card rounded-lg border border-border p-4 space-y-4">
@@ -73,7 +81,7 @@ export default function MembersPage() {
                 {filtered.map((member) => (
                   <tr key={member.id} className="hover:bg-muted/50">
                     <td className="py-3 px-4 text-foreground font-medium">{member.name}</td>
-                    <td className="py-3 px-4 text-foreground">{member.phone}</td>
+                    <td className="py-3 px-4 text-foreground">{member.phone_number}</td>
                     <td className="py-3 px-4 text-foreground">{member.email || '—'}</td>
                     <td className="py-3 px-4 text-foreground">{member.id_number || '—'}</td>
                     <td className="py-3 px-4 text-muted-foreground text-xs">

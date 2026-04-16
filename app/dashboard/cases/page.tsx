@@ -29,11 +29,10 @@ export default function CasesPage() {
 
   const filtered = cases.filter((caseItem) => {
     const matchesSearch =
-      caseItem.case_number.includes(search) ||
-      caseItem.phone.includes(search) ||
-      caseItem.description.toLowerCase().includes(search.toLowerCase());
+      caseItem.case_number?.includes(search) ||
+      caseItem.description?.toLowerCase().includes(search.toLowerCase());
     const matchesFilter =
-      filter === 'all' || (filter === 'open' && !caseItem.resolved_at) || (filter === 'closed' && caseItem.resolved_at);
+      filter === 'all' || (filter === 'open' && caseItem.status !== 'closed') || (filter === 'closed' && caseItem.status === 'closed');
     return matchesSearch && matchesFilter;
   });
 
@@ -88,19 +87,19 @@ export default function CasesPage() {
                 {filtered.map((caseItem) => (
                   <tr key={caseItem.id} className="hover:bg-muted/50">
                     <td className="py-3 px-4 text-foreground font-medium">{caseItem.case_number}</td>
-                    <td className="py-3 px-4 text-foreground">{caseItem.phone}</td>
+                    <td className="py-3 px-4 text-foreground">{caseItem.member_id || '—'}</td>
                     <td className="py-3 px-4 text-foreground text-xs max-w-xs truncate">
                       {caseItem.description}
                     </td>
                     <td className="py-3 px-4">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          caseItem.resolved_at
+                          caseItem.status === 'closed'
                             ? 'bg-gray-100 text-gray-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}
                       >
-                        {caseItem.resolved_at ? 'Closed' : 'Open'}
+                        {caseItem.status === 'closed' ? 'Closed' : 'Open'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-xs">

@@ -29,13 +29,13 @@ export default function TransactionsPage() {
 
   const filtered = transactions.filter((tx) => {
     const matchesSearch =
-      tx.phone.includes(search) ||
-      tx.bill_reference.includes(search) ||
-      tx.merchant_request_id.includes(search);
+      tx.msisdn?.includes(search) ||
+      tx.bill_ref_number?.includes(search) ||
+      tx.trans_id?.includes(search);
     const matchesFilter =
       filter === 'all' ||
-      (filter === 'completed' && tx.result_code === 0) ||
-      (filter === 'failed' && tx.result_code !== 0);
+      (filter === 'completed' && tx.status === 'completed') ||
+      (filter === 'failed' && tx.status === 'failed');
     return matchesSearch && matchesFilter;
   });
 
@@ -89,18 +89,18 @@ export default function TransactionsPage() {
               <tbody className="divide-y divide-border">
                 {filtered.map((tx) => (
                   <tr key={tx.id} className="hover:bg-muted/50">
-                    <td className="py-3 px-4 text-foreground">{tx.phone}</td>
-                    <td className="py-3 px-4 text-foreground">KES {tx.amount.toLocaleString()}</td>
-                    <td className="py-3 px-4 text-foreground text-xs">{tx.bill_reference}</td>
+                    <td className="py-3 px-4 text-foreground">{tx.msisdn}</td>
+                    <td className="py-3 px-4 text-foreground">KES {parseFloat(tx.trans_amount || '0').toLocaleString()}</td>
+                    <td className="py-3 px-4 text-foreground text-xs">{tx.bill_ref_number}</td>
                     <td className="py-3 px-4">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          tx.result_code === 0
+                          tx.status === 'completed'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {tx.result_code === 0 ? 'Completed' : 'Failed'}
+                        {tx.status === 'completed' ? 'Completed' : 'Failed'}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-xs">
