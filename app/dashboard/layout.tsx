@@ -1,34 +1,32 @@
-'use client'
+'use client';
 
-import { ReactNode } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { ReactNode } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 interface NavItem {
-  href: string
-  label: string
-  icon: string
+  href: string;
+  label: string;
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/dashboard/transactions', label: 'Transactions', icon: '💳' },
-  { href: '/dashboard/members', label: 'Members', icon: '👥' },
-  { href: '/dashboard/cases', label: 'Cases', icon: '📋' },
-  { href: '/dashboard/failed', label: 'Failed Payments', icon: '❌' },
-  { href: '/dashboard/settings', label: 'Settings', icon: '⚙️' },
-]
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dashboard/transactions', label: 'Transactions' },
+  { href: '/dashboard/members', label: 'Members' },
+  { href: '/dashboard/cases', label: 'Cases' },
+  { href: '/dashboard/settings', label: 'Settings' },
+];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 shadow-sm">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-primary">M-Pesa Hub</h1>
-          <p className="text-sm text-gray-500 mt-1">Payment Dashboard</p>
+      <aside className="w-64 bg-card border-r border-border shadow-sm overflow-y-auto">
+        <div className="p-6 border-b border-border">
+          <h1 className="text-2xl font-bold text-primary">M-Pesa System</h1>
+          <p className="text-sm text-muted-foreground mt-1">Payment Dashboard</p>
         </div>
 
         <nav className="p-4 space-y-2">
@@ -36,21 +34,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                pathname === item.href
-                  ? 'bg-primary text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+              className={`block px-4 py-3 rounded-lg transition-colors ${
+                pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground hover:bg-muted'
               }`}
             >
-              <span className="text-xl">{item.icon}</span>
               <span className="font-medium">{item.label}</span>
             </Link>
           ))}
         </nav>
 
-        <div className="absolute bottom-4 left-4 right-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-xs font-semibold text-blue-900">Environment</p>
-          <p className="text-xs text-blue-700 mt-1">
+        <div className="p-4 m-4 bg-secondary/50 rounded-lg border border-border">
+          <p className="text-xs font-semibold text-foreground">Environment</p>
+          <p className="text-xs text-muted-foreground mt-1">
             {process.env.NEXT_PUBLIC_APP_URL?.includes('localhost') ? 'Development' : 'Production'}
           </p>
         </div>
@@ -63,5 +60,5 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </main>
     </div>
-  )
+  );
 }
