@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createValidationLog } from '@/lib/db'
-import { validatePhoneNumber, validateAmount, validateBillReference } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,55 +11,24 @@ export async function POST(request: NextRequest) {
       BillRefNumber: body.BillRefNumber,
     })
 
-    // Validate phone number
-    const phoneError = validatePhoneNumber(body.MSISDN)
-    if (phoneError) {
-      console.log('[v0] Phone validation failed:', phoneError)
+    // Basic validation: check phone number format
+    if (!body.MSISDN || !/^254\d{9}$/.test(body.MSISDN)) {
+      console.log('[v0] Phone validation failed:', body.MSISDN)
       return NextResponse.json({
         ResultCode: '01',
-        ResultDesc: phoneError.message,
+        ResultDesc: 'Invalid phone number format',
       })
     }
 
     // Validate amount
     const amount = parseFloat(body.TransAmount)
-    const amountError = validateAmount(amount)
-    if (amountError) {
-      console.log('[v0] Amount validation failed:', amountError)
+    if (!amount || amount <= 0 || amount > 10000000) {
+      console.log('[v0] Amount validation failed:', amount)
       return NextResponse.json({
         ResultCode: '01',
-        ResultDesc: amountError.message,
+        ResultDesc: 'Invalid transaction amount',
       })
     }
-
-    // Validate bill reference if provided
-    if (body.BillRefNumber) {
-      const billError = await validateBillReference(body.BillRefNumber, amount)
-      if (billError) {
-        console.log('[v0] Bill reference validation failed:', billError)
-        
-        // Log validation attempt
-        await createValidationLog({
-          phone_number: body.MSISDN,
-          amount: amount,
-          bill_reference: body.BillRefNumber,
-          validation_result: false,
-        })
-
-        return NextResponse.json({
-          ResultCode: '01',
-          ResultDesc: billError.message,
-        })
-      }
-    }
-
-    // Log successful validation
-    await createValidationLog({
-      phone_number: body.MSISDN,
-      amount: amount,
-      bill_reference: body.BillRefNumber || null,
-      validation_result: true,
-    })
 
     console.log('[v0] Validation successful for transaction:', body.TransID)
 

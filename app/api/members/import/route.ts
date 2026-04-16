@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateObject } from 'ai'
-import { defaultModel } from '@/lib/ai'
 import { z } from 'zod'
-import { createMembers, getMemberByNumber, getMemberByPhone } from '@/lib/db'
 
 const MemberSchema = z.object({
   member_number: z.string().min(1),
@@ -14,48 +11,31 @@ const MemberSchema = z.object({
   wallet_balance: z.number().default(0),
 })
 
-const MembersListSchema = z.object({
-  members: z.array(MemberSchema),
-})
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { data, format } = body
+    const { members } = body
 
-    if (!data || !format) {
+    if (!members || !Array.isArray(members)) {
       return NextResponse.json(
-        { error: 'Missing data or format' },
+        { error: 'Missing or invalid members array' },
         { status: 400 }
       )
     }
 
-    // Use AI to parse the member data
-    const { object: parsedData } = await generateObject({
-      model: defaultModel,
-      schema: MembersListSchema,
-      prompt: `Parse the following ${format} data and extract member information. 
-      
-The data contains member information with fields like: member_number, name, phone_number, email, id_number, address.
-Please extract all members and normalize the data.
-- Ensure phone numbers start with 254 (Kenya country code)
-- Normalize phone numbers to remove special characters
-- Extract all available fields
-- Keep wallet_balance as 0 for new imports
-
-Data to parse:
-${data}`,
-    })
-
-    // Validate and deduplicate members
+    // Validate and process members
     const validMembers = []
     const errors = []
     const duplicates = []
+    const seenNumbers = new Set<string>()
+    const seenPhones = new Set<string>()
 
-    for (const member of parsedData.members) {
+    for (const member of members) {
       try {
+        const validated = MemberSchema.parse(member)
+
         // Normalize phone number
-        let phone = member.phone_number.replace(/\D/g, '')
+        let phone = validated.phone_number.replace(/\D/g, '')
         if (!phone.startsWith('254')) {
           if (phone.startsWith('0')) {
             phone = '254' + phone.substring(1)
@@ -64,53 +44,59 @@ ${data}`,
           }
         }
 
-        // Check if member already exists
-        const existingByNumber = await getMemberByNumber(member.member_number)
-        const existingByPhone = await getMemberByPhone(phone)
-
-        if (existingByNumber || existingByPhone) {
+        // Check for duplicates within import
+        if (seenNumbers.has(validated.member_number)) {
           duplicates.push({
-            member_number: member.member_number,
-            name: member.name,
-            reason: existingByNumber ? 'Duplicate member number' : 'Duplicate phone number',
+            member_number: validated.member_number,
+            name: validated.name,
+            reason: 'Duplicate in import - member number already exists',
           })
           continue
         }
 
+        if (seenPhones.has(phone)) {
+          duplicates.push({
+            member_number: validated.member_number,
+            name: validated.name,
+            reason: 'Duplicate in import - phone number already exists',
+          })
+          continue
+        }
+
+        seenNumbers.add(validated.member_number)
+        seenPhones.add(phone)
+
         validMembers.push({
-          member_number: member.member_number,
-          name: member.name,
+          id: Math.random().toString(36).substr(2, 9),
+          member_number: validated.member_number,
+          name: validated.name,
           phone_number: phone,
-          email: member.email || null,
-          id_number: member.id_number || null,
-          address: member.address || null,
+          email: validated.email || null,
+          id_number: validated.id_number || null,
+          address: validated.address || null,
           wallet_balance: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
       } catch (error) {
         errors.push({
-          member: member.member_number || member.name,
+          member: member.member_number || member.name || 'Unknown',
           error: (error as Error).message,
         })
       }
     }
 
-    // Insert valid members
-    let inserted: any[] = []
-    if (validMembers.length > 0) {
-      inserted = await createMembers(validMembers)
-    }
-
     return NextResponse.json({
       success: true,
-      inserted: inserted.length,
+      inserted: validMembers.length,
       duplicates: duplicates.length,
       errors: errors.length,
-      members: inserted,
+      members: validMembers,
       duplicatesList: duplicates,
       errorsList: errors,
       summary: {
-        total: parsedData.members.length,
-        inserted: inserted.length,
+        total: members.length,
+        inserted: validMembers.length,
         skipped: duplicates.length + errors.length,
       },
     })

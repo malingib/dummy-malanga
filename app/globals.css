@@ -58,27 +58,3 @@ body {
   margin: 0 auto;
   padding: 0 20px;
 }
-
-.btn-secondary {
-  @apply btn bg-gray-200 text-gray-800 hover:bg-gray-300;
-}
-
-.table-cell {
-  @apply px-4 py-3 text-sm;
-}
-
-.badge {
-  @apply inline-block px-2 py-1 rounded-full text-xs font-medium;
-}
-
-.badge-success {
-  @apply badge bg-green-100 text-green-800;
-}
-
-.badge-pending {
-  @apply badge bg-yellow-100 text-yellow-800;
-}
-
-.badge-error {
-  @apply badge bg-red-100 text-red-800;
-}

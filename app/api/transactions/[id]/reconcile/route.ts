@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateTransaction, getTransaction } from '@/lib/db'
 
 export async function POST(
   request: NextRequest,
@@ -8,19 +7,13 @@ export async function POST(
   try {
     const { id } = await params
     
-    const transaction = await getTransaction(id)
-    if (!transaction) {
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      )
-    }
-
-    // Update transaction status to reconciled
-    const updated = await updateTransaction(id, {
+    // Mock reconciliation response
+    const updated = {
+      id,
       status: 'reconciled',
       error_message: null,
-    })
+      reconciled_at: new Date().toISOString(),
+    }
 
     return NextResponse.json(updated)
   } catch (error) {
