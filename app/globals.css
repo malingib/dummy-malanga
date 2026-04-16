@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    --primary: 34 97% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 34 97% 52%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 34 97% 52%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,8 +41,8 @@
 }
 
 html {
-  background-color: #ffffff;
-  color: #000000;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 body {
@@ -25,18 +57,6 @@ body {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 20px;
-}
-
-.card {
-  @apply bg-white border border-gray-200 rounded-lg shadow-sm p-4;
-}
-
-.btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
-}
-
-.btn-primary {
-  @apply btn bg-primary text-white hover:bg-green-600;
 }
 
 .btn-secondary {
