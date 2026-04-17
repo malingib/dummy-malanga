@@ -17,10 +17,10 @@ export default function MembersPage() {
         const response = await fetch('/api/members');
         if (response.ok) {
           const data = await response.json();
-          setMembers(data);
+          setMembers(Array.isArray(data) ? data : []);
         }
       } catch (error) {
-        console.error('Failed to fetch members:', error);
+        console.error('[v0] Failed to fetch members:', error);
       } finally {
         setLoading(false);
       }

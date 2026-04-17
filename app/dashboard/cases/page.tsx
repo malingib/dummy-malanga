@@ -15,10 +15,10 @@ export default function CasesPage() {
         const response = await fetch('/api/cases');
         if (response.ok) {
           const data = await response.json();
-          setCases(data);
+          setCases(Array.isArray(data) ? data : []);
         }
       } catch (error) {
-        console.error('Failed to fetch cases:', error);
+        console.error('[v0] Failed to fetch cases:', error);
       } finally {
         setLoading(false);
       }

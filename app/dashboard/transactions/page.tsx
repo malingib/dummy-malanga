@@ -14,11 +14,13 @@ export default function TransactionsPage() {
       try {
         const response = await fetch('/api/transactions');
         if (response.ok) {
-          const data = await response.json();
-          setTransactions(data);
+          const result = await response.json();
+          // Handle both direct array and object with data property
+          const data = Array.isArray(result) ? result : result.data || result;
+          setTransactions(Array.isArray(data) ? data : []);
         }
       } catch (error) {
-        console.error('Failed to fetch transactions:', error);
+        console.error('[v0] Failed to fetch transactions:', error);
       } finally {
         setLoading(false);
       }

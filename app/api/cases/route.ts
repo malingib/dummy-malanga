@@ -1,34 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
+import { getCases } from '@/lib/db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const mockCases = [
-      {
-        id: '1',
-        case_number: 'CASE001',
-        member_id: '1',
-        description: 'Member requested payment dispute resolution',
-        amount_due: 5000,
-        amount_paid: 2500,
-        status: 'open' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: '2',
-        case_number: 'CASE002',
-        member_id: '2',
-        description: 'Failed payment - please investigate',
-        amount_due: 3000,
-        amount_paid: 3000,
-        status: 'closed' as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
-    return NextResponse.json(mockCases);
+    const searchParams = request.nextUrl.searchParams
+    const search = searchParams.get('search') || undefined
+    const status = searchParams.get('status') || undefined
+
+    const cases = await getCases(search, status)
+    return NextResponse.json(cases)
   } catch (error) {
-    console.error('Error fetching cases:', error);
-    return NextResponse.json([], { status: 200 });
+    console.error('[v0] Error fetching cases:', error)
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 })
   }
 }

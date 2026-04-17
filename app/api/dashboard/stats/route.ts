@@ -1,20 +1,55 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
   try {
-    // Return mock stats for development
-    const stats = {
-      totalTransactions: 1243,
-      totalAmount: 2845600,
-      successfulPayments: 1089,
-      failedPayments: 154,
-      activeMembers: 356,
-      openCases: 23,
-    };
+    // Get transaction stats
+    const { data: txData, error: txError } = await supabase
+      .from('transactions')
+      .select('status, trans_amount')
 
-    return NextResponse.json(stats);
+    if (txError) throw txError
+
+    let totalAmount = 0
+    let successfulPayments = 0
+    let failedPayments = 0
+
+    if (txData) {
+      txData.forEach((tx: any) => {
+        const amount = parseFloat(tx.trans_amount || 0)
+        totalAmount += amount
+        if (tx.status === 'completed') successfulPayments++
+        else if (tx.status === 'failed') failedPayments++
+      })
+    }
+
+    // Get members count
+    const { count: membersCount, error: membersError } = await supabase
+      .from('members')
+      .select('*', { count: 'exact' })
+
+    if (membersError) throw membersError
+
+    // Get open cases count
+    const { count: casesCount, error: casesError } = await supabase
+      .from('cases')
+      .select('*', { count: 'exact' })
+      .neq('status', 'closed')
+
+    if (casesError) throw casesError
+
+    const stats = {
+      totalTransactions: txData?.length || 0,
+      totalAmount: Math.round(totalAmount),
+      successfulPayments,
+      failedPayments,
+      activeMembers: membersCount || 0,
+      openCases: casesCount || 0,
+    }
+
+    return NextResponse.json(stats)
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    console.error('[v0] Error fetching stats:', error)
     return NextResponse.json(
       {
         totalTransactions: 0,
@@ -24,7 +59,7 @@ export async function GET() {
         activeMembers: 0,
         openCases: 0,
       },
-      { status: 200 }
-    );
+      { status: 500 }
+    )
   }
 }
