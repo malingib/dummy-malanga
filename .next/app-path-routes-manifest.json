@@ -1,0 +1,23 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/admin/reconcile/route": "/api/admin/reconcile",
+  "/api/cases/route": "/api/cases",
+  "/api/dashboard/stats/route": "/api/dashboard/stats",
+  "/api/members/import/route": "/api/members/import",
+  "/api/members/route": "/api/members",
+  "/api/mpesa/confirmation/route": "/api/mpesa/confirmation",
+  "/api/mpesa/simulate/route": "/api/mpesa/simulate",
+  "/api/mpesa/token/route": "/api/mpesa/token",
+  "/api/mpesa/validation/route": "/api/mpesa/validation",
+  "/api/transactions/[id]/reconcile/route": "/api/transactions/[id]/reconcile",
+  "/api/transactions/route": "/api/transactions",
+  "/dashboard/cases/page": "/dashboard/cases",
+  "/dashboard/failed/page": "/dashboard/failed",
+  "/dashboard/members/import/page": "/dashboard/members/import",
+  "/dashboard/members/page": "/dashboard/members",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/settings/page": "/dashboard/settings",
+  "/dashboard/transactions/page": "/dashboard/transactions",
+  "/page": "/"
+}

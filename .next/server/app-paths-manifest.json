@@ -1,0 +1,23 @@
+{
+  "/_global-error/page": "app/_global-error/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/admin/reconcile/route": "app/api/admin/reconcile/route.js",
+  "/api/cases/route": "app/api/cases/route.js",
+  "/api/dashboard/stats/route": "app/api/dashboard/stats/route.js",
+  "/api/members/import/route": "app/api/members/import/route.js",
+  "/api/members/route": "app/api/members/route.js",
+  "/api/mpesa/confirmation/route": "app/api/mpesa/confirmation/route.js",
+  "/api/mpesa/simulate/route": "app/api/mpesa/simulate/route.js",
+  "/api/mpesa/token/route": "app/api/mpesa/token/route.js",
+  "/api/mpesa/validation/route": "app/api/mpesa/validation/route.js",
+  "/api/transactions/[id]/reconcile/route": "app/api/transactions/[id]/reconcile/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
+  "/dashboard/cases/page": "app/dashboard/cases/page.js",
+  "/dashboard/failed/page": "app/dashboard/failed/page.js",
+  "/dashboard/members/import/page": "app/dashboard/members/import/page.js",
+  "/dashboard/members/page": "app/dashboard/members/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
+  "/dashboard/transactions/page": "app/dashboard/transactions/page.js",
+  "/page": "app/page.js"
+}

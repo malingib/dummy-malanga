@@ -1,0 +1,3 @@
+{
+  "/api/mpesa/simulate/route": "app/api/mpesa/simulate/route.js"
+}

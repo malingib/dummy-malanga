@@ -1,0 +1,3 @@
+{
+  "/api/mpesa/token/route": "app/api/mpesa/token/route.js"
+}
