@@ -10,13 +10,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.1.0",
     "@supabase/supabase-js": "^2.38.0",
-    "ai": "^6.0.0",
     "autoprefixer": "^10.4.0",
     "axios": "^1.6.0",
     "clsx": "^2.0.0",
-    "crypto": "^1.0.1",
     "date-fns": "^2.30.0",
     "next": "^16.0.0",
     "postcss": "^8.4.0",
