@@ -1,1 +1,15 @@
 node_modules
+.next
+.env*
+!.env.local.example
+*.log
+*.json
+!package.json
+!tsconfig.json
+!components.json
+!package-lock.json
+!pnpm-lock.yaml
+out
+build
+dist
+.codex
