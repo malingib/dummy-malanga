@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin.rpc('reconcile_payment_workspace', { p_workspace_id: id, p_period_start: start.toISOString(), p_period_end: end.toISOString() })
     if (error) throw error
+    const result = data as { run_id?: string } | null
+    if (result?.run_id) {
+      const { error: exceptionError } = await supabaseAdmin.rpc('refresh_reconciliation_exceptions', { p_workspace_id: id, p_run_id: result.run_id })
+      if (exceptionError) throw exceptionError
+    }
     return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('[payments/reconciliation] POST error:', error)
