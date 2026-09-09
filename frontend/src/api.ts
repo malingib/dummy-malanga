@@ -14,23 +14,10 @@ export type Payment = {
   created_at: string
   completed_at?: string | null
 }
-
-export type Stats = {
-  totalTransactions: number
-  totalAmount: number
-  successfulPayments: number
-  failedPayments: number
-  activeMembers: number
-  openCases: number
-}
-
-export type MpesaReadiness = {
-  workspace: { id: string; shortcode: string | null; environment: string; status: string; payment_methods: string[] | null }
-  readiness: { credentials: boolean; callback: boolean; connection: { credential_status?: string; callback_status?: string; last_tested_at?: string; last_error?: string | null } | null; production: boolean }
-}
-
+export type Stats = { totalTransactions: number; totalAmount: number; successfulPayments: number; failedPayments: number; activeMembers: number; openCases: number }
+export type MpesaReadiness = { workspace: { id: string; shortcode: string | null; environment: string; status: string; payment_methods: string[] | null }; readiness: { credentials: boolean; callback: boolean; connection: { credential_status?: string; callback_status?: string; last_tested_at?: string; last_error?: string | null } | null; production: boolean } }
 export type ApiKey = { id: string; name: string; key_prefix: string; key_last4: string; scopes: string[]; status: string; created_at: string; last_used_at?: string | null; expires_at?: string | null; revoked_at?: string | null }
-export type Webhook = { id: string; name: string; url: string; events?: string[]; status: string; created_at: string; last_delivery_at?: string | null }
+export type Webhook = { id: string; url: string; events?: string[]; status: string; created_at: string; last_success_at?: string | null; last_failure_at?: string | null }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } })
@@ -38,13 +25,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`)
   return payload as T
 }
-
 export const api = {
   stats: () => request<Stats>('/api/dashboard/stats'),
-  payments: (params: Record<string, string> = {}) => {
-    const query = new URLSearchParams({ limit: '100', ...params })
-    return request<{ transactions?: Payment[]; data?: Payment[]; count?: number }>(`/api/payments/transactions?${query}`)
-  },
+  payments: (params: Record<string, string> = {}) => request<{ transactions?: Payment[]; data?: Payment[]; count?: number }>(`/api/payments/transactions?${new URLSearchParams({ limit: '100', ...params })}`),
   mpesa: () => request<MpesaReadiness>('/api/mpesa/admin'),
   testMpesa: () => request<{ success: boolean; credential_status: string; tested_at?: string; error?: string }>('/api/mpesa/admin', { method: 'POST' }),
   stk: (payload: { phone: string; amount: number; reference: string; description: string }) => request<{ success: boolean; data: Record<string, unknown>; transaction: Payment }>('/api/payments/stk', { method: 'POST', body: JSON.stringify(payload) }),
@@ -52,5 +35,6 @@ export const api = {
   reconciliationHistory: () => request<{ success: boolean; data: Array<Record<string, unknown>> }>('/api/payments/reconciliation'),
   apiKeys: () => request<{ keys: ApiKey[] }>('/api/developer/keys'),
   createApiKey: (payload: { name: string; scopes: string[] }) => request<{ key: ApiKey; secret: string; warning: string }>('/api/developer/keys', { method: 'POST', body: JSON.stringify(payload) }),
-  webhooks: () => request<{ webhooks: Webhook[] }>('/api/developer/webhooks'),
+  webhooks: () => request<{ endpoints: Webhook[] }>('/api/developer/webhooks'),
+  createWebhook: (payload: { url: string; events: string[] }) => request<{ endpoint: Webhook; secret: string; warning: string }>('/api/developer/webhooks', { method: 'POST', body: JSON.stringify(payload) }),
 }
