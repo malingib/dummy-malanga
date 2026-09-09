@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
+import { queueWebhook } from '@/lib/webhooks'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +22,11 @@ export async function POST(request: NextRequest) {
     const phone = get('PhoneNumber')
     const status = resultCode === '0' ? 'success' : 'failed'
 
-    const { data: transaction } = await supabaseAdmin.from('payment_transactions').update({ status, result_code: resultCode, result_description: String(callback.ResultDesc || ''), mpesa_receipt: receipt ? String(receipt) : null, phone_number: phone ? String(phone) : undefined, amount: amount ? Number(amount) : undefined, raw_payload: body }).eq('transaction_id', checkoutId).select('id,workspace_id,status').maybeSingle()
-    if (transaction) await supabaseAdmin.from('payment_webhook_events').update({ workspace_id: transaction.workspace_id }).eq('id', event.id)
+    const { data: transaction } = await supabaseAdmin.from('payment_transactions').update({ status, result_code: resultCode, result_description: String(callback.ResultDesc || ''), mpesa_receipt: receipt ? String(receipt) : null, phone_number: phone ? String(phone) : undefined, amount: amount ? Number(amount) : undefined, raw_payload: body }).eq('transaction_id', checkoutId).select('id,workspace_id,status,amount,reference,transaction_id,mpesa_receipt,phone_number').maybeSingle()
+    if (transaction) {
+      await supabaseAdmin.from('payment_webhook_events').update({ workspace_id: transaction.workspace_id }).eq('id', event.id)
+      await queueWebhook(status === 'success' ? 'payment.success' : 'payment.failed', checkoutId, transaction.workspace_id, { id: transaction.id, transaction_id: transaction.transaction_id, status: transaction.status, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, phone: transaction.phone_number })
+    }
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   } catch (error) {
     console.error('[stk-callback] error:', error)
