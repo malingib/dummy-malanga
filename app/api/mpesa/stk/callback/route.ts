@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
       if (status === 'success' && transaction.phone_number) {
         const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('notification_sms').eq('id', transaction.workspace_id).maybeSingle()
         if (workspace?.notification_sms) {
+          const { data: template } = await supabaseAdmin.from('payment_sms_templates').select('message,sender_id').eq('workspace_id', transaction.workspace_id).eq('event_type', 'payment.receipt').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle()
           const { data: notification } = await supabaseAdmin.from('payment_notification_events').insert({ workspace_id: transaction.workspace_id, transaction_id: transaction.id, channel: 'sms', event_type: 'payment.receipt', recipient: transaction.phone_number, status: 'pending' }).select('id').maybeSingle()
           try {
-            const result = await sendPaymentReceipt({ recipient: transaction.phone_number, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt })
+            const result = await sendPaymentReceipt({ recipient: transaction.phone_number, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, messageTemplate: template?.message, senderId: template?.sender_id })
             await supabaseAdmin.from('payment_notification_events').update({ status: result.skipped ? 'skipped' : 'sent', provider_uid: result.data?.data?.uid, sent_at: result.sent ? new Date().toISOString() : null }).eq('id', notification?.id || '')
           } catch (smsError) {
             await supabaseAdmin.from('payment_notification_events').update({ status: 'failed', error_message: smsError instanceof Error ? smsError.message : 'SMS delivery failed' }).eq('id', notification?.id || '')
