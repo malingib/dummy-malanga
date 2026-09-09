@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "npx tsc --noEmit"
+    "lint": "npx tsc --noEmit",
+    "test:mpesa": "node --test tests/mpesa-callback-rules.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
