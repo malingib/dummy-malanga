@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const status = url.searchParams.get('status')
     const type = url.searchParams.get('type')
-    let query = supabaseAdmin.from('payment_reconciliation_exceptions').select('*, payment_transactions(id, amount, phone_number, reference, status, mpesa_receipt, transaction_id, created_at)').eq('workspace_id', id).order('created_at', { ascending: false }).limit(100)
+    let query = supabaseAdmin.from('payment_reconciliation_exceptions').select('*, payment_transactions(id, amount, phone_number, reference, status, mpesa_receipt, transaction_id, connection_id, shortcode, account_type, created_at)').eq('workspace_id', id).order('created_at', { ascending: false }).limit(100)
     if (status) query = query.eq('status', status)
     if (type) query = query.eq('type', type)
     const { data, error } = await query
