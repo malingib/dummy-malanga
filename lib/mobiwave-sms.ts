@@ -22,9 +22,9 @@ function normalizePhone(phone: string) {
 
 function renderTemplate(template: string, input: PaymentReceipt) {
   return template
-    .replaceAll('{{amount}}', Number(input.amount).toLocaleString())
-    .replaceAll('{{reference}}', input.reference || '')
-    .replaceAll('{{receipt}}', input.receipt || '')
+    .replace(/\{\{amount\}\}/g, Number(input.amount).toLocaleString())
+    .replace(/\{\{reference\}\}/g, input.reference || '')
+    .replace(/\{\{receipt\}\}/g, input.receipt || '')
 }
 
 export async function sendPaymentReceipt(input: PaymentReceipt) {
