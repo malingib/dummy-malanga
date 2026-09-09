@@ -6,6 +6,8 @@ import { createOrUpdateMpesaConnection, registerMpesaCallbacks, obtainMpesaToken
 async function workspaceId() { return (await cookies()).get('mobiwave_workspace_id')?.value || null }
 function publicConnection(row: Record<string, unknown>) { return { id: row.id, shortcode: row.shortcode, account_type: row.account_type, environment: row.environment, credential_source: row.credential_source, connection_status: row.connection_status, token_status: row.token_status, callback_status: row.callback_status, is_primary: row.is_primary, is_active: row.is_active, token_last_obtained_at: row.token_last_obtained_at, callback_registered_at: row.callback_registered_at, callback_verified_at: row.callback_verified_at, last_tested_at: row.last_tested_at, last_error: row.last_error, created_at: row.created_at } }
 
+const managedMpesaEnabled = () => process.env.MOBIWAVE_MANAGED_MPESA_ENABLED === 'true'
+
 export async function GET() {
   const workspace = await workspaceId(); if (!workspace) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 })
   const { data, error } = await supabaseAdmin.from('mpesa_connections').select('*').eq('workspace_id', workspace).order('is_primary', { ascending: false }).order('created_at', { ascending: true })
@@ -17,8 +19,12 @@ export async function POST(request: NextRequest) {
   const workspace = await workspaceId(); if (!workspace) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 })
   const body = await request.json().catch(() => ({})); const shortcode = String(body?.shortcode || '').trim()
   if (!/^\d{5,7}$/.test(shortcode)) return NextResponse.json({ error: 'Enter a valid M-Pesa shortcode.' }, { status: 400 })
+  const credentialSource = body?.credential_source === 'mobiwave' ? 'mobiwave' : 'merchant'
+  if (credentialSource === 'mobiwave' && !managedMpesaEnabled()) {
+    return NextResponse.json({ error: 'MobiWave-managed M-Pesa credentials are not enabled for this account.' }, { status: 403 })
+  }
   try {
-    const connection = await createOrUpdateMpesaConnection({ workspaceId: workspace, shortcode, accountType: body?.account_type === 'till' ? 'till' : 'paybill', environment: body?.environment === 'production' ? 'production' : 'sandbox', credentialSource: body?.credential_source === 'mobiwave' ? 'mobiwave' : 'merchant', consumerKey: body?.consumer_key, consumerSecret: body?.consumer_secret, passkey: body?.passkey, isPrimary: Boolean(body?.is_primary) })
+    const connection = await createOrUpdateMpesaConnection({ workspaceId: workspace, shortcode, accountType: body?.account_type === 'till' ? 'till' : 'paybill', environment: body?.environment === 'production' ? 'production' : 'sandbox', credentialSource, consumerKey: body?.consumer_key, consumerSecret: body?.consumer_secret, passkey: body?.passkey, isPrimary: Boolean(body?.is_primary) })
     return NextResponse.json({ success: true, data: publicConnection(connection) }, { status: 201 })
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to save M-Pesa connection.' }, { status: 500 }) }
 }
@@ -29,6 +35,9 @@ export async function PATCH(request: NextRequest) {
   if (!connectionId) return NextResponse.json({ error: 'Connection id is required.' }, { status: 400 })
   const { data: connection } = await supabaseAdmin.from('mpesa_connections').select('*').eq('id', connectionId).eq('workspace_id', workspace).maybeSingle()
   if (!connection) return NextResponse.json({ error: 'M-Pesa connection not found.' }, { status: 404 })
+  if (connection.credential_source === 'mobiwave' && !managedMpesaEnabled()) {
+    return NextResponse.json({ error: 'MobiWave-managed M-Pesa credentials are not enabled for this account.' }, { status: 403 })
+  }
   try {
     if (body?.action === 'verify') await obtainMpesaToken(connectionId)
     else if (body?.action === 'register_callbacks') await registerMpesaCallbacks(connectionId)
