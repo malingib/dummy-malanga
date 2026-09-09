@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase'
 import { queueWebhook } from '@/lib/webhooks'
+import { sendPaymentReceipt } from '@/lib/mobiwave-sms'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,20 @@ export async function POST(request: NextRequest) {
     if (transaction) {
       await supabaseAdmin.from('payment_webhook_events').update({ workspace_id: transaction.workspace_id }).eq('id', event.id)
       await queueWebhook(status === 'success' ? 'payment.success' : 'payment.failed', checkoutId, transaction.workspace_id, { id: transaction.id, transaction_id: transaction.transaction_id, status: transaction.status, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, phone: transaction.phone_number })
+
+      if (status === 'success' && transaction.phone_number) {
+        const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('notification_sms').eq('id', transaction.workspace_id).maybeSingle()
+        if (workspace?.notification_sms) {
+          const { data: notification } = await supabaseAdmin.from('payment_notification_events').insert({ workspace_id: transaction.workspace_id, transaction_id: transaction.id, channel: 'sms', event_type: 'payment.receipt', recipient: transaction.phone_number, status: 'pending' }).select('id').maybeSingle()
+          try {
+            const result = await sendPaymentReceipt({ recipient: transaction.phone_number, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt })
+            await supabaseAdmin.from('payment_notification_events').update({ status: result.skipped ? 'skipped' : 'sent', provider_uid: result.data?.data?.uid, sent_at: result.sent ? new Date().toISOString() : null }).eq('id', notification?.id || '')
+          } catch (smsError) {
+            await supabaseAdmin.from('payment_notification_events').update({ status: 'failed', error_message: smsError instanceof Error ? smsError.message : 'SMS delivery failed' }).eq('id', notification?.id || '')
+            console.error('[stk-callback] payment receipt SMS failed:', smsError)
+          }
+        }
+      }
     }
     return NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' })
   } catch (error) {
