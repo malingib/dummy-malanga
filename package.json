@@ -1,7 +1,7 @@
 {
   "name": "mpesa-dashboard",
   "version": "1.0.0",
-  "description": "M-Pesa C2B Payment Processing Dashboard with Supabase",
+  "description": "MobiWave M-Pesa payment platform",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
+    "@tanstack/react-query": "^5.89.0",
     "autoprefixer": "^10.4.0",
     "axios": "^1.6.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "lucide-react": "^0.468.0",
     "next": "^16.0.0",
     "postcss": "^8.4.0",
     "react": "^19.0.0",
@@ -22,7 +24,8 @@
     "recharts": "^2.10.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^3.4.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@types/d3-array": "^3.2.2",
