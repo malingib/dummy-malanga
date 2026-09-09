@@ -1,5 +1,6 @@
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'reversed'
 export type ReconciliationStatus = 'unreconciled' | 'matched' | 'unmatched' | 'duplicate' | 'manual'
+export type ReconciliationException = { id: string; workspace_id: string; reconciliation_run_id?: string | null; transaction_id?: string | null; type: string; severity: string; status: string; title: string; reason?: string | null; amount?: number | string | null; assigned_to?: string | null; resolution_note?: string | null; resolved_at?: string | null; created_at: string; updated_at: string }
 
 export type Payment = {
   id: string
@@ -41,6 +42,8 @@ export const api = {
   stkStatus: (checkoutRequestId: string) => request<{ success: boolean; data: { ResultCode?: string | number; ResultDesc?: string; [key: string]: unknown } }>('/api/payments/stk/status', { method: 'POST', body: JSON.stringify({ checkoutRequestId }) }),
   reconcile: (payload?: { periodStart?: string; periodEnd?: string }) => request<{ success: boolean; data: unknown }>('/api/payments/reconciliation', { method: 'POST', body: JSON.stringify(payload || {}) }),
   reconciliationHistory: () => request<{ success: boolean; data: Array<Record<string, unknown>> }>('/api/payments/reconciliation'),
+  reconciliationExceptions: (status?: string) => request<{ data: ReconciliationException[] }>(`/api/payments/reconciliation/exceptions${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  updateReconciliationException: (id: string, payload: { status?: string; severity?: string; resolution_note?: string; assigned_to?: string | null }) => request<{ data: ReconciliationException }>(`/api/payments/reconciliation/exceptions/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   smsDelivery: (status?: string) => request<{ data: SmsDelivery[] }>(`/api/sms/delivery${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   smsTemplates: () => request<{ data: SmsTemplate[] }>('/api/sms/templates'),
   createSmsTemplate: (payload: { name: string; sender_id: string; message: string }) => request<{ data: SmsTemplate }>('/api/sms/templates', { method: 'POST', body: JSON.stringify(payload) }),
