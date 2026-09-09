@@ -3,6 +3,8 @@ import { Link, NavLink, Route, Routes, useNavigate, useParams } from 'react-rout
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, Payment, PaymentStatus, Webhook } from './api'
 import { useUiStore } from './store'
+import { SmsOperations } from './SmsOperations'
+import { PaymentDetailOperations } from './PaymentDetailOperations'
 
 type Nav = { label: string; path: string; icon: string }
 const nav: Nav[] = [
@@ -36,9 +38,9 @@ function Shell() {
     <main className="main">
       <header className="topbar"><button className="menu" onClick={toggleSidebar}>☰</button><div className="crumb">Payments workspace</div><div className="top-actions"><select value={environment} onChange={e => setEnvironment(e.target.value as 'sandbox' | 'production')}><option value="sandbox">Sandbox</option><option value="production">Production</option></select><div className="avatar">MW</div></div></header>
       <div className="content"><Routes>
-        <Route path="/" element={<Overview />} /><Route path="/payments" element={<Payments />} /><Route path="/payments/:id" element={<PaymentDetail />} />
+        <Route path="/" element={<Overview />} /><Route path="/payments" element={<Payments />} /><Route path="/payments/:id" element={<PaymentDetailOperations />} />
         <Route path="/customers" element={<Customers />} /><Route path="/reconciliation" element={<Reconciliation />} /><Route path="/mpesa" element={<Mpesa />} />
-        <Route path="/sms" element={<Sms />} /><Route path="/developers" element={<Developers />} /><Route path="/settings" element={<Settings />} />
+        <Route path="/sms" element={<SmsOperations />} /><Route path="/developers" element={<Developers />} /><Route path="/settings" element={<Settings />} />
       </Routes></div>
     </main>
   </div>
