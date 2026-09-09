@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
-  const shortcode = String(body?.BusinessShortCode || body?.BillRefNumber || '').trim() || null
+  const shortcode = String(body?.BusinessShortCode || body?.TillNumber || '').trim() || null
   const transactionId = String(body?.TransID || '').trim() || null
   const idempotencyKey = transactionId ? `c2b:validation:${transactionId}` : `c2b:validation:${crypto.randomUUID()}`
 
