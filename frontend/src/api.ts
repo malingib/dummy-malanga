@@ -17,7 +17,7 @@ export type Payment = {
 export type Stats = { totalTransactions: number; totalAmount: number; successfulPayments: number; failedPayments: number; activeMembers: number; openCases: number }
 export type MpesaReadiness = { workspace: { id: string; shortcode: string | null; environment: string; status: string; payment_methods: string[] | null }; readiness: { credentials: boolean; callback: boolean; connection: { credential_status?: string; callback_status?: string; last_tested_at?: string; last_error?: string | null } | null; production: boolean } }
 export type ApiKey = { id: string; name: string; key_prefix: string; key_last4: string; scopes: string[]; status: string; created_at: string; last_used_at?: string | null; expires_at?: string | null; revoked_at?: string | null }
-export type Webhook = { id: string; url: string; events?: string[]; status: string; created_at: string; last_success_at?: string | null; last_failure_at?: string | null }
+export type Webhook = { id: string; url: string; events?: string[]; status: string; created_at: string; updated_at?: string | null; last_success_at?: string | null; last_failure_at?: string | null }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } })
@@ -35,6 +35,10 @@ export const api = {
   reconciliationHistory: () => request<{ success: boolean; data: Array<Record<string, unknown>> }>('/api/payments/reconciliation'),
   apiKeys: () => request<{ keys: ApiKey[] }>('/api/developer/keys'),
   createApiKey: (payload: { name: string; scopes: string[] }) => request<{ key: ApiKey; secret: string; warning: string }>('/api/developer/keys', { method: 'POST', body: JSON.stringify(payload) }),
+  revokeApiKey: (id: string) => request<{ success: boolean }>(`/api/developer/keys/${id}`, { method: 'DELETE' }),
   webhooks: () => request<{ endpoints: Webhook[] }>('/api/developer/webhooks'),
   createWebhook: (payload: { url: string; events: string[] }) => request<{ endpoint: Webhook; secret: string; warning: string }>('/api/developer/webhooks', { method: 'POST', body: JSON.stringify(payload) }),
+  updateWebhook: (id: string, payload: { url?: string; events?: string[]; status?: string }) => request<{ endpoint: Webhook }>(`/api/developer/webhooks/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  disableWebhook: (id: string) => request<{ success: boolean }>(`/api/developer/webhooks/${id}`, { method: 'DELETE' }),
+  apiPlayground: (path: string, method: 'GET' | 'POST', apiKey: string, body?: Record<string, unknown>) => request<Record<string, unknown>>(path, { method, headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}, body: method === 'POST' ? JSON.stringify(body || {}) : undefined }),
 }
