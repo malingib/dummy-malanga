@@ -11,6 +11,8 @@ export type Payment = {
   mpesa_receipt: string | null
   transaction_id?: string | null
   transaction_type?: string | null
+  result_code?: string | null
+  result_description?: string | null
   created_at: string
   completed_at?: string | null
 }
@@ -19,6 +21,9 @@ export type MpesaReadiness = { workspace: { id: string; shortcode: string | null
 export type ApiKey = { id: string; name: string; key_prefix: string; key_last4: string; scopes: string[]; status: string; created_at: string; last_used_at?: string | null; expires_at?: string | null; revoked_at?: string | null }
 export type Webhook = { id: string; url: string; events?: string[]; status: string; created_at: string; updated_at?: string | null; last_success_at?: string | null; last_failure_at?: string | null }
 export type WebhookDelivery = { id: string; endpoint_id: string; event_type: string; event_id: string; status: string; attempt_count: number; next_attempt_at?: string | null; response_status?: number | null; response_body?: string | null; last_error?: string | null; created_at: string; delivered_at?: string | null }
+export type SmsDelivery = { id: string; transaction_id?: string | null; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
+export type SmsTemplate = { id: string; name: string; event_type: string; sender_id: string; message: string; status: string; created_at: string; updated_at?: string | null }
+export type PaymentNotification = { id: string; channel: string; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } })
@@ -29,11 +34,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   stats: () => request<Stats>('/api/dashboard/stats'),
   payments: (params: Record<string, string> = {}) => request<{ transactions?: Payment[]; data?: Payment[]; count?: number }>(`/api/payments/transactions?${new URLSearchParams({ limit: '100', ...params })}`),
+  payment: (id: string) => request<{ data: Payment; notifications: PaymentNotification[] }>(`/api/payments/transactions/${id}`),
   mpesa: () => request<MpesaReadiness>('/api/mpesa/admin'),
   testMpesa: () => request<{ success: boolean; credential_status: string; tested_at?: string; error?: string }>('/api/mpesa/admin', { method: 'POST' }),
   stk: (payload: { phone: string; amount: number; reference: string; description: string }) => request<{ success: boolean; data: Record<string, unknown>; transaction: Payment }>('/api/payments/stk', { method: 'POST', body: JSON.stringify(payload) }),
+  stkStatus: (checkoutRequestId: string) => request<{ success: boolean; data: { ResultCode?: string | number; ResultDesc?: string; [key: string]: unknown } }>('/api/payments/stk/status', { method: 'POST', body: JSON.stringify({ checkoutRequestId }) }),
   reconcile: (payload?: { periodStart?: string; periodEnd?: string }) => request<{ success: boolean; data: unknown }>('/api/payments/reconciliation', { method: 'POST', body: JSON.stringify(payload || {}) }),
   reconciliationHistory: () => request<{ success: boolean; data: Array<Record<string, unknown>> }>('/api/payments/reconciliation'),
+  smsDelivery: (status?: string) => request<{ data: SmsDelivery[] }>(`/api/sms/delivery${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  smsTemplates: () => request<{ data: SmsTemplate[] }>('/api/sms/templates'),
+  createSmsTemplate: (payload: { name: string; sender_id: string; message: string }) => request<{ data: SmsTemplate }>('/api/sms/templates', { method: 'POST', body: JSON.stringify(payload) }),
   apiKeys: () => request<{ keys: ApiKey[] }>('/api/developer/keys'),
   createApiKey: (payload: { name: string; scopes: string[] }) => request<{ key: ApiKey; secret: string; warning: string }>('/api/developer/keys', { method: 'POST', body: JSON.stringify(payload) }),
   revokeApiKey: (id: string) => request<{ success: boolean }>(`/api/developer/keys/${id}`, { method: 'DELETE' }),
