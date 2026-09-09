@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
-import { hashSecret, resolveWorkspace } from '@/lib/api-auth';
+import { resolveWorkspace } from '@/lib/api-auth';
+import { encryptSecret } from '@/lib/webhooks';
 
 export async function GET(request: NextRequest) {
   const workspace = await resolveWorkspace(request);
@@ -21,11 +22,11 @@ export async function POST(request: NextRequest) {
     if (!/^https:\/\//i.test(url)) return NextResponse.json({ error: 'Webhook URL must use HTTPS.' }, { status: 400 });
     if (!events.length) return NextResponse.json({ error: 'At least one webhook event is required.' }, { status: 400 });
     const secret = `whsec_${randomBytes(32).toString('base64url')}`;
-    const { data, error } = await supabaseAdmin.from('payment_webhook_endpoints').insert({ workspace_id: workspace.id, url, secret_hash: hashSecret(secret), events }).select('id,url,events,status,created_at').single();
+    const { data, error } = await supabaseAdmin.from('payment_webhook_endpoints').insert({ workspace_id: workspace.id, url, secret_hash: 'managed-by-encryption', secret_ciphertext: encryptSecret(secret), events }).select('id,url,events,status,created_at').single();
     if (error) return NextResponse.json({ error: 'Unable to create webhook endpoint.' }, { status: 500 });
     await supabaseAdmin.from('payment_audit_logs').insert({ workspace_id: workspace.id, actor_user_id: workspace.ownerUserId, action: 'webhook.created', resource_type: 'webhook_endpoint', resource_id: data.id, metadata: { url, events } });
     return NextResponse.json({ endpoint: data, secret, warning: 'Store this signing secret now. It cannot be displayed again.' }, { status: 201 });
   } catch {
-    return NextResponse.json({ error: 'Invalid webhook request.' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid webhook request or encryption configuration.' }, { status: 400 });
   }
 }
