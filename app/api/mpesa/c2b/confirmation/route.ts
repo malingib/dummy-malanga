@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { POST as legacyConfirmation } from '@/app/api/mpesa/confirmation/route'
 import { assertTransactionRouting, attachTransactionRouting, resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
+import { extractC2BIdentifiers, isCallbackBodyTooLarge, validateConfirmationPayload } from '@/lib/mpesa-callback-rules.mjs'
 
 function resultFromPayload(body: Record<string, unknown>) {
   const nested = body?.Result as Record<string, unknown> | undefined
@@ -12,9 +13,18 @@ function resultFromPayload(body: Record<string, unknown>) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({})) as Record<string, unknown>
-  const shortcode = String(body?.BusinessShortCode || '').trim() || null
-  const transactionId = String(body?.TransID || '').trim() || null
+  if (isCallbackBodyTooLarge(request.headers.get('content-length'))) {
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Payload too large' }, { status: 200 })
+  }
+
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null
+  if (!body) return NextResponse.json({ ResultCode: '01', ResultDesc: 'Invalid payload' }, { status: 200 })
+
+  const { shortcode, transactionId } = extractC2BIdentifiers(body)
+  const validation = validateConfirmationPayload(body)
+  if (!validation.valid) {
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Invalid payment data' }, { status: 200 })
+  }
 
   let connection = null
   try {
@@ -105,20 +115,10 @@ export async function POST(request: NextRequest) {
   }
 
   const result = resultFromPayload(body)
-  const amount = Number(body?.TransAmount)
+  const amount = validation.amount
   const status = result.code === '0' ? 'success' : 'failed'
 
-  if (!transactionId || !Number.isFinite(amount) || amount <= 0) {
-    await supabaseAdmin.from('mpesa_callback_events').update({
-      status: 'failed',
-      response_payload: responsePayload,
-      error_message: 'Invalid payment ledger fields',
-      processed_at: new Date().toISOString(),
-    }).eq('id', event?.id || '')
-    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Invalid payment data' }, { status: 200 })
-  }
-
-  const { data: payment, error: paymentError } = await supabaseAdmin
+  const { error: paymentError } = await supabaseAdmin
     .from('payment_transactions')
     .upsert({
       workspace_id: connection.workspace_id,
@@ -136,8 +136,6 @@ export async function POST(request: NextRequest) {
       result_description: result.description,
       raw_payload: body,
     }, { onConflict: 'workspace_id,transaction_id' })
-    .select('id')
-    .single()
 
   if (paymentError) {
     console.error('[c2b/confirmation] payment ledger error:', paymentError)
