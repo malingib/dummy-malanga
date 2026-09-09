@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getAccessToken } from '@/lib/mpesa';
+import { getMpesaToken } from '@/lib/mpesa';
 
 export async function GET() {
   const workspaceId = (await cookies()).get('mobiwave_workspace_id')?.value;
@@ -15,14 +15,14 @@ export async function GET() {
   return NextResponse.json({ workspace: { id: workspace.id, shortcode: workspace.shortcode, environment, status: workspace.status, payment_methods: workspace.payment_methods }, readiness: { credentials: credentialsConfigured, callback: callbackConfigured, connection: connection || null, production: environment === 'production' } });
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   const workspaceId = (await cookies()).get('mobiwave_workspace_id')?.value;
   if (!workspaceId) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 });
   const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('id,shortcode,environment').eq('id', workspaceId).maybeSingle();
   if (!workspace) return NextResponse.json({ error: 'Workspace not found.' }, { status: 404 });
   const now = new Date().toISOString();
   try {
-    await getAccessToken();
+    await getMpesaToken();
     await supabaseAdmin.from('payment_mpesa_connections').upsert({ workspace_id: workspace.id, shortcode: workspace.shortcode, environment: workspace.environment, credential_status: 'verified', last_tested_at: now, last_error: null }, { onConflict: 'workspace_id' });
     return NextResponse.json({ success: true, credential_status: 'verified', tested_at: now });
   } catch (error: unknown) {
