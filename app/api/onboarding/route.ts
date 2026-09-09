@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const business = body?.business;
-    const setup: string[] = Array.isArray(body?.setup) ? [...new Set(body.setup.map((value: unknown) => String(value)))] : [];
+    const setup: string[] = Array.isArray(body?.setup)
+      ? Array.from(new Set<string>(body.setup.map((value: unknown) => String(value))))
+      : [];
     const mpesa = body?.mpesa || {};
     const features = body?.features || {};
     const name = String(business?.name || '').trim();
