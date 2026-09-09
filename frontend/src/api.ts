@@ -18,6 +18,7 @@ export type Stats = { totalTransactions: number; totalAmount: number; successful
 export type MpesaReadiness = { workspace: { id: string; shortcode: string | null; environment: string; status: string; payment_methods: string[] | null }; readiness: { credentials: boolean; callback: boolean; connection: { credential_status?: string; callback_status?: string; last_tested_at?: string; last_error?: string | null } | null; production: boolean } }
 export type ApiKey = { id: string; name: string; key_prefix: string; key_last4: string; scopes: string[]; status: string; created_at: string; last_used_at?: string | null; expires_at?: string | null; revoked_at?: string | null }
 export type Webhook = { id: string; url: string; events?: string[]; status: string; created_at: string; updated_at?: string | null; last_success_at?: string | null; last_failure_at?: string | null }
+export type WebhookDelivery = { id: string; endpoint_id: string; event_type: string; event_id: string; status: string; attempt_count: number; next_attempt_at?: string | null; response_status?: number | null; response_body?: string | null; last_error?: string | null; created_at: string; delivered_at?: string | null }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: 'include', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } })
@@ -40,5 +41,7 @@ export const api = {
   createWebhook: (payload: { url: string; events: string[] }) => request<{ endpoint: Webhook; secret: string; warning: string }>('/api/developer/webhooks', { method: 'POST', body: JSON.stringify(payload) }),
   updateWebhook: async (id: string, payload: { url?: string; events?: string[]; status?: string }) => { const response = await request<{ endpoint: Webhook }>(`/api/developer/webhooks/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); return { ...response, secret: '' } },
   disableWebhook: (id: string) => request<{ success: boolean }>(`/api/developer/webhooks/${id}`, { method: 'DELETE' }),
+  webhookDeliveries: (endpointId?: string) => request<{ deliveries: WebhookDelivery[] }>(`/api/developer/webhooks/deliveries${endpointId ? `?endpoint_id=${encodeURIComponent(endpointId)}` : ''}`),
+  retryWebhookDelivery: (deliveryId: string) => request<{ success: boolean; delivery_id: string; result: Record<string, unknown> }>('/api/developer/webhooks/deliveries', { method: 'POST', body: JSON.stringify({ delivery_id: deliveryId }) }),
   apiPlayground: (path: string, method: 'GET' | 'POST', apiKey: string, body?: Record<string, unknown>, idempotencyKey?: string) => request<Record<string, unknown>>(path, { method, headers: { ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) }, body: method === 'POST' ? JSON.stringify(body || {}) : undefined }),
 }
