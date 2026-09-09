@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const name = String(body?.name || '').trim();
-    const scopes: string[] = Array.isArray(body?.scopes) ? Array.from(new Set(body.scopes.map((v: unknown) => String(v)))).filter((v: string) => (API_SCOPES as readonly string[]).includes(v)) : ['payments:read', 'payments:write'];
+    const scopes: string[] = Array.isArray(body?.scopes)
+      ? Array.from(new Set((body.scopes as unknown[]).map((v): string => String(v)))).filter((v): v is string => (API_SCOPES as readonly string[]).includes(v))
+      : ['payments:read', 'payments:write'];
     if (!name) return NextResponse.json({ error: 'Key name is required.' }, { status: 400 });
     if (!scopes.length) return NextResponse.json({ error: 'At least one valid scope is required.' }, { status: 400 });
     const expiresAt = body?.expiresAt ? new Date(String(body.expiresAt)).toISOString() : null;
