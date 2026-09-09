@@ -7,11 +7,12 @@ export async function POST(request: NextRequest) {
   const shortcode = String(body?.BusinessShortCode || '').trim() || null
   const transactionId = String(body?.TransID || '').trim() || null
 
-  const { data: connection } = shortcode
-    ? await supabaseAdmin.from('mpesa_connections').select('id,workspace_id').eq('shortcode', shortcode).eq('environment', process.env.MPESA_ENVIRONMENT === 'production' ? 'production' : 'sandbox').eq('is_active', true).maybeSingle()
-    : { data: null }
+  const { data: connections } = shortcode
+    ? await supabaseAdmin.from('mpesa_connections').select('id,workspace_id,environment').eq('shortcode', shortcode).eq('is_active', true)
+    : { data: [] }
+  const connection = connections?.find((item) => item.environment === (process.env.MPESA_ENVIRONMENT === 'production' ? 'production' : 'sandbox')) || connections?.[0] || null
 
-  const idempotencyKey = transactionId ? `c2b:confirmation:${transactionId}` : `c2b:confirmation:${crypto.randomUUID()}`
+  const idempotencyKey = transactionId ? `c2b:confirmation:${shortcode || 'unknown'}:${transactionId}` : `c2b:confirmation:${crypto.randomUUID()}`
   const { data: prior } = await supabaseAdmin.from('mpesa_callback_events').select('id,status').eq('idempotency_key', idempotencyKey).maybeSingle()
   if (prior?.status === 'processed' || prior?.status === 'duplicate') {
     return NextResponse.json({ ResultCode: '0', ResultDesc: 'Received' })
@@ -27,16 +28,9 @@ export async function POST(request: NextRequest) {
     status: connection ? 'received' : 'rejected',
   }).select('id').maybeSingle()
 
-  if (!connection) {
-    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unknown shortcode' }, { status: 200 })
-  }
+  if (!connection) return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unknown shortcode' }, { status: 200 })
 
-  const forwarded = new NextRequest(request.url, {
-    method: 'POST',
-    headers: request.headers,
-    body: JSON.stringify(body),
-  })
-
+  const forwarded = new NextRequest(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(body) })
   const response = await legacyConfirmation(forwarded)
   const responsePayload = await response.clone().json().catch(() => ({}))
   await supabaseAdmin.from('mpesa_callback_events').update({
