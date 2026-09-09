@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
+import { extractC2BIdentifiers, isCallbackBodyTooLarge } from '@/lib/mpesa-callback-rules.mjs'
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}))
-  const shortcode = String(body?.BusinessShortCode || body?.TillNumber || '').trim() || null
-  const transactionId = String(body?.TransID || '').trim() || null
+  if (isCallbackBodyTooLarge(request.headers.get('content-length'))) {
+    return NextResponse.json({ ResultCode: '1', ResultDesc: 'Payload too large' })
+  }
 
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null
+  if (!body) return NextResponse.json({ ResultCode: '1', ResultDesc: 'Invalid payload' })
+
+  const { shortcode, transactionId } = extractC2BIdentifiers(body)
   let connection = null
   try {
     connection = shortcode ? await resolveMpesaConnection(shortcode) : null
@@ -19,7 +24,12 @@ export async function POST(request: NextRequest) {
     ? `c2b:validation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
     : `c2b:validation:${connection?.id || shortcode || 'unknown'}:${crypto.randomUUID()}`
 
-  const { data: prior } = await supabaseAdmin.from('mpesa_callback_events').select('id,status,response_payload').eq('idempotency_key', idempotencyKey).maybeSingle()
+  const { data: prior } = await supabaseAdmin
+    .from('mpesa_callback_events')
+    .select('id,status,response_payload')
+    .eq('idempotency_key', idempotencyKey)
+    .maybeSingle()
+
   if (prior?.status === 'processed' || prior?.status === 'duplicate') {
     return NextResponse.json(prior.response_payload || { ResultCode: '0', ResultDesc: 'Accepted' })
   }
