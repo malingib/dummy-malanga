@@ -18,3 +18,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: Build React merchant frontend
+        working-directory: frontend
+        run: npm install --no-audit --no-fund && npm run build
