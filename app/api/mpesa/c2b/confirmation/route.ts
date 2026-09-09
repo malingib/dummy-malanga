@@ -20,11 +20,13 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
   if (!body) return NextResponse.json({ ResultCode: '01', ResultDesc: 'Invalid payload' }, { status: 200 })
 
-  const { shortcode, transactionId } = extractC2BIdentifiers(body)
+  const { shortcode } = extractC2BIdentifiers(body)
   const validation = validateConfirmationPayload(body)
   if (!validation.valid) {
     return NextResponse.json({ ResultCode: '01', ResultDesc: 'Invalid payment data' }, { status: 200 })
   }
+
+  const transactionId = validation.transactionId
 
   let connection = null
   try {
@@ -34,9 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unable to resolve shortcode' }, { status: 200 })
   }
 
-  const idempotencyKey = transactionId
-    ? `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
-    : `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${crypto.randomUUID()}`
+  const idempotencyKey = `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
 
   const { data: prior } = await supabaseAdmin
     .from('mpesa_callback_events')
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await assertTransactionRouting(transactionId || '', connection)
+    await assertTransactionRouting(transactionId, connection)
   } catch (error) {
     console.error('[c2b/confirmation] routing conflict:', error)
     await supabaseAdmin.from('mpesa_callback_events').insert({
