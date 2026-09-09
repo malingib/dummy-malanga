@@ -1,75 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { POST as legacyConfirmation } from '@/app/api/mpesa/confirmation/route'
+import { assertTransactionRouting, attachTransactionRouting, resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const shortcode = String(body?.BusinessShortCode || '').trim() || null
   const transactionId = String(body?.TransID || '').trim() || null
-  const { data: connections } = shortcode
-    ? await supabaseAdmin.from('mpesa_connections').select('id,workspace_id,environment,account_type').eq('shortcode', shortcode).eq('is_active', true)
-    : { data: [] }
 
-  const requestedEnvironment = process.env.MPESA_ENVIRONMENT === 'production' ? 'production' : 'sandbox'
-  const connection = connections?.find((item) => item.environment === requestedEnvironment) || connections?.[0] || null
-  const idempotencyKey = transactionId
-    ? `c2b:confirmation:${shortcode || 'unknown'}:${transactionId}`
-    : `c2b:confirmation:${shortcode || 'unknown'}:${crypto.randomUUID()}`
-
-  const { data: prior } = await supabaseAdmin
-    .from('mpesa_callback_events')
-    .select('id,status')
-    .eq('idempotency_key', idempotencyKey)
-    .maybeSingle()
-  if (prior?.status === 'processed' || prior?.status === 'duplicate') {
-    return NextResponse.json({ ResultCode: '0', ResultDesc: 'Received' })
+  let connection = null
+  try {
+    connection = shortcode ? await resolveMpesaConnection(shortcode) : null
+  } catch (error) {
+    console.error('[c2b/confirmation] connection resolution error:', error)
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unable to resolve shortcode' }, { status: 200 })
   }
 
-  const { data: event } = await supabaseAdmin.from('mpesa_callback_events').insert({
-    connection_id: connection?.id || null,
-    workspace_id: connection?.workspace_id || null,
+  const idempotencyKey = transactionId
+    ? `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
+    : `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${crypto.randomUUID()}`
+
+  const { data: prior } = await supabaseAdmin.from('mpesa_callback_events').select('id,status').eq('idempotency_key', idempotencyKey).maybeSingle()
+  if (prior?.status === 'processed' || prior?.status === 'duplicate') return NextResponse.json({ ResultCode: '0', ResultDesc: 'Received' })
+
+  if (!connection) {
+    await supabaseAdmin.from('mpesa_callback_events').insert({ event_type: 'c2b.confirmation', idempotency_key: idempotencyKey, shortcode, payload: body, status: 'rejected', error_message: 'Unknown or inactive shortcode', processed_at: new Date().toISOString() })
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unknown shortcode' }, { status: 200 })
+  }
+
+  try {
+    await assertTransactionRouting(transactionId || '', connection)
+  } catch (error) {
+    console.error('[c2b/confirmation] routing conflict:', error)
+    await supabaseAdmin.from('mpesa_callback_events').insert({ connection_id: connection.id, workspace_id: connection.workspace_id, event_type: 'c2b.confirmation', idempotency_key: idempotencyKey, shortcode, payload: body, status: 'rejected', error_message: 'Payment transaction routing conflict', processed_at: new Date().toISOString() })
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Payment routing conflict' }, { status: 200 })
+  }
+
+  const { data: event, error: eventError } = await supabaseAdmin.from('mpesa_callback_events').insert({
+    connection_id: connection.id,
+    workspace_id: connection.workspace_id,
     event_type: 'c2b.confirmation',
     idempotency_key: idempotencyKey,
     shortcode,
     payload: body,
-    status: connection ? 'received' : 'rejected',
+    status: 'received',
   }).select('id').maybeSingle()
 
-  if (!connection) {
-    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unknown shortcode' }, { status: 200 })
+  if (eventError) {
+    if (eventError.code === '23505') return NextResponse.json({ ResultCode: '0', ResultDesc: 'Received' })
+    console.error('[c2b/confirmation] event insert error:', eventError)
+    return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unable to record callback' }, { status: 200 })
   }
 
-  const forwarded = new NextRequest(request.url, {
-    method: 'POST',
-    headers: request.headers,
-    body: JSON.stringify(body),
-  })
+  const forwarded = new NextRequest(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(body) })
   const response = await legacyConfirmation(forwarded)
   const responsePayload = await response.clone().json().catch(() => ({}))
   const processed = response.ok
 
-  await supabaseAdmin.from('mpesa_callback_events').update({
-    status: processed ? 'processed' : 'failed',
-    response_payload: responsePayload,
-    processed_at: new Date().toISOString(),
-  }).eq('id', event?.id || '')
+  if (processed && transactionId) {
+    try {
+      await attachTransactionRouting(transactionId, connection, event?.id)
+    } catch (error) {
+      console.error('[c2b/confirmation] transaction routing attachment error:', error)
+      await supabaseAdmin.from('mpesa_callback_events').update({ status: 'failed', response_payload: responsePayload, error_message: 'Transaction routing attachment failed', processed_at: new Date().toISOString() }).eq('id', event?.id || '')
+      return NextResponse.json({ ResultCode: '01', ResultDesc: 'Transaction routing failed' }, { status: 200 })
+    }
+  }
+
+  await supabaseAdmin.from('mpesa_callback_events').update({ status: processed ? 'processed' : 'failed', response_payload: responsePayload, processed_at: new Date().toISOString() }).eq('id', event?.id || '')
 
   if (processed) {
-    const now = new Date().toISOString()
-    await supabaseAdmin.from('mpesa_connections').update({
-      callback_verified_at: now,
-      connection_status: 'ready',
-      last_error: null,
-    }).eq('id', connection.id)
-
-    if (transactionId) {
-      await supabaseAdmin.from('payment_transactions').update({
-        connection_id: connection.id,
-        shortcode: shortcode,
-        account_type: connection.account_type,
-        callback_event_id: event?.id || null,
-      }).eq('workspace_id', connection.workspace_id).eq('transaction_id', transactionId)
-    }
+    await supabaseAdmin.from('mpesa_connections').update({ callback_verified_at: new Date().toISOString(), connection_status: 'ready', callback_status: 'verified', last_error: null }).eq('id', connection.id)
   }
 
   return response
