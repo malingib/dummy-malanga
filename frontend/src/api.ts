@@ -38,7 +38,7 @@ export const api = {
   revokeApiKey: (id: string) => request<{ success: boolean }>(`/api/developer/keys/${id}`, { method: 'DELETE' }),
   webhooks: () => request<{ endpoints: Webhook[] }>('/api/developer/webhooks'),
   createWebhook: (payload: { url: string; events: string[] }) => request<{ endpoint: Webhook; secret: string; warning: string }>('/api/developer/webhooks', { method: 'POST', body: JSON.stringify(payload) }),
-  updateWebhook: (id: string, payload: { url?: string; events?: string[]; status?: string }) => request<{ endpoint: Webhook }>(`/api/developer/webhooks/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  updateWebhook: async (id: string, payload: { url?: string; events?: string[]; status?: string }) => { const response = await request<{ endpoint: Webhook }>(`/api/developer/webhooks/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); return { ...response, secret: '' } },
   disableWebhook: (id: string) => request<{ success: boolean }>(`/api/developer/webhooks/${id}`, { method: 'DELETE' }),
   apiPlayground: (path: string, method: 'GET' | 'POST', apiKey: string, body?: Record<string, unknown>, idempotencyKey?: string) => request<Record<string, unknown>>(path, { method, headers: { ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}), ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) }, body: method === 'POST' ? JSON.stringify(body || {}) : undefined }),
 }
