@@ -15,7 +15,7 @@ export type SmsDelivery = { id: string; transaction_id?: string | null; event_ty
 export type SmsTemplate = { id: string; name: string; event_type: string; sender_id: string; message: string; status: string; created_at: string; updated_at?: string | null }
 export type PaymentNotification = { id: string; channel: string; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const apiPath = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
