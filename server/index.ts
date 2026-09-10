@@ -10,10 +10,10 @@ const routes: Route[] = [
   ['cases', 'app/api/cases/route.ts'],
   ['dashboard/stats', 'app/api/dashboard/stats/route.ts'],
   ['developer/keys', 'app/api/developer/keys/route.ts'],
-  ['developer/keys/:id', 'app/api/developer/keys/[id]/route.ts'],
   ['developer/webhooks', 'app/api/developer/webhooks/route.ts'],
-  ['developer/webhooks/:id', 'app/api/developer/webhooks/[id]/route.ts'],
   ['developer/webhooks/deliveries', 'app/api/developer/webhooks/deliveries/route.ts'],
+  ['developer/keys/:id', 'app/api/developer/keys/[id]/route.ts'],
+  ['developer/webhooks/:id', 'app/api/developer/webhooks/[id]/route.ts'],
   ['internal/webhooks/process', 'app/api/internal/webhooks/process/route.ts'],
   ['members', 'app/api/members/route.ts'],
   ['members/import', 'app/api/members/import/route.ts'],
@@ -40,8 +40,8 @@ const routes: Route[] = [
   ['sms/delivery', 'app/api/sms/delivery/route.ts'],
   ['sms/templates', 'app/api/sms/templates/route.ts'],
   ['transactions', 'app/api/transactions/route.ts'],
-  ['transactions/:id', 'app/api/transactions/[id]/route.ts'],
   ['transactions/:id/reconcile', 'app/api/transactions/[id]/reconcile/route.ts'],
+  ['transactions/:id', 'app/api/transactions/[id]/route.ts'],
   ['v1/payments/stk', 'app/api/v1/payments/stk/route.ts'],
   ['v1/payments/:id', 'app/api/v1/payments/[id]/route.ts'],
 ].map(([pattern, file]) => ({
@@ -93,7 +93,7 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ error: 'Not found' }))
   }
 
-  const pathname = url.pathname.slice('/api'.length) || '/'
+  const pathname = url.pathname.slice('/api'.length).replace(/\/$/, '') || '/'
   const route = routes.find((candidate) => match(candidate.pattern, pathname))
   if (!route) {
     res.statusCode = 404
@@ -104,7 +104,8 @@ const server = http.createServer(async (req, res) => {
   try {
     const body = await readBody(req)
     const request = new ApiRequest(req, body, process.env.PUBLIC_API_PROTOCOL || 'http')
-    request.nextUrl.href = `${process.env.PUBLIC_API_ORIGIN || request.nextUrl.origin}${url.pathname}${url.search}`
+    const publicOrigin = process.env.PUBLIC_API_ORIGIN
+    if (publicOrigin) request.nextUrl.href = `${publicOrigin.replace(/\/$/, '')}${url.pathname}${url.search}`
     const params = match(route.pattern, pathname) || {}
     const module = await route.load()
     const handler = module[req.method || 'GET']
