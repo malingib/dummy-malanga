@@ -15,7 +15,21 @@ export type SmsDelivery = { id: string; transaction_id?: string | null; event_ty
 export type SmsTemplate = { id: string; name: string; event_type: string; sender_id: string; message: string; status: string; created_at: string; updated_at?: string | null }
 export type PaymentNotification = { id: string; channel: string; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> { const response = await fetch(path, { credentials: 'include', ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`); return payload as T }
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+
+const apiPath = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(apiPath(path), {
+    credentials: 'include',
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`)
+  return payload as T
+}
+
 export const api = {
   stats: () => request<Stats>('/api/dashboard/stats'),
   payments: (params: Record<string, string> = {}) => request<{ transactions?: Payment[]; data?: Payment[]; count?: number }>(`/api/payments/transactions?${new URLSearchParams({ limit: '100', ...params })}`),
@@ -24,7 +38,7 @@ export const api = {
   testMpesa: () => request<{ success: boolean; credential_status: string; tested_at?: string; error?: string }>('/api/mpesa/admin', { method: 'POST' }),
   mpesaConnections: () => request<{ success: boolean; data: MpesaConnection[] }>('/api/mpesa/connections'),
   createMpesaConnection: (payload: { shortcode: string; account_type: string; environment: string; consumer_key?: string; consumer_secret?: string; passkey?: string; is_primary?: boolean }) => request<{ success: boolean; data: MpesaConnection }>('/api/mpesa/connections', { method: 'POST', body: JSON.stringify(payload) }),
-  mpesaConnectionAction: (id: string, action: 'verify' | 'register_callbacks' | 'activate' | 'deactivate' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaConnection | null }>('/api/mpesa/connections', { method: 'PATCH', body: JSON.stringify({ id, action, ...(payload || {}) }) }),
+  mpesaConnectionAction: (id: string, action: 'verify' | 'register_callbacks' | 'activate' | 'deactivate' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaConnection | null }>('/api/mpesa/connections', { method: 'PATCH', body: JSON.stringify({ id, action, ...(payload || {}) }) ),
   activation: () => request<{ success: boolean; data: MpesaActivationState }>('/api/mpesa/activation'),
   activationAction: (connection_id: string, action: 'verify' | 'register_callbacks' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaActivationState }>('/api/mpesa/activation', { method: 'PATCH', body: JSON.stringify({ connection_id, action, ...(payload || {}) }) }),
   requestActivation: (notes?: string) => request<{ success: boolean; data: MpesaActivation }>('/api/mpesa/activation', { method: 'POST', body: JSON.stringify({ notes }) }),
