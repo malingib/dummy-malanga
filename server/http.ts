@@ -23,8 +23,13 @@ function parseCookies(header: string | undefined): Map<string, string> {
     const index = part.indexOf('=')
     if (index < 0) continue
     const name = part.slice(0, index).trim()
-    const value = part.slice(index + 1).trim()
-    if (name) cookies.set(name, decodeURIComponent(value))
+    const rawValue = part.slice(index + 1).trim()
+    if (!name) continue
+    try {
+      cookies.set(name, decodeURIComponent(rawValue))
+    } catch {
+      cookies.set(name, rawValue)
+    }
   }
   return cookies
 }
@@ -65,9 +70,12 @@ export class ApiResponse {
   headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' })
   private setCookies: string[] = []
 
-  constructor(body: unknown, status = 200) {
+  constructor(body: unknown, status = 200, headers?: HeadersInit) {
     this.body = body
     this.status = status
+    if (headers) {
+      for (const [key, value] of new Headers(headers).entries()) this.headers.set(key, value)
+    }
   }
 
   get ok() {
@@ -79,8 +87,7 @@ export class ApiResponse {
   }
 
   clone() {
-    const copy = new ApiResponse(this.body, this.status)
-    for (const [key, value] of this.headers.entries()) copy.headers.set(key, value)
+    const copy = new ApiResponse(this.body, this.status, this.headers)
     copy.setCookies = [...this.setCookies]
     return copy
   }
@@ -111,7 +118,7 @@ export class NextRequest extends ApiRequest {}
 
 export class NextResponse extends ApiResponse {
   static json(body: unknown, init: ResponseInit = {}) {
-    return new NextResponse(body, init.status || 200)
+    return new NextResponse(body, init.status || 200, init.headers)
   }
 }
 
