@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type MpesaConnection } from './api'
 
@@ -46,12 +47,12 @@ export function MpesaActivationJourney() {
       {connection?.last_error && <div className="alert" style={{marginTop:16}}>{connection.last_error}</div>}
 
       <div className="form-actions" style={{marginTop:20}}>
-        {!connection && <a className="primary" href="/mpesa/connections">Add connection</a>}
+        {!connection && <Link className="primary" to="/mpesa/connections">Add connection</Link>}
         {connection && current === 'verify' && <button className="primary" onClick={() => action.mutate({action:'verify'})} disabled={action.isPending}>{action.isPending ? 'Verifying…' : 'Verify connection'}</button>}
         {connection && current === 'callbacks' && <button className="primary" onClick={() => action.mutate({action:'register_callbacks'})} disabled={action.isPending}>{action.isPending ? 'Configuring…' : 'Configure notifications'}</button>}
         {connection && current === 'test' && <button className="primary" onClick={() => setShowTest(true)}>Run payment test</button>}
-        {connection && current === 'ready' && <a className="primary" href="/payments">Request payment</a>}
-        {connection && <a href="/mpesa/connections">Manage connections</a>}
+        {connection && current === 'ready' && <Link className="primary" to="/payments">Request payment</Link>}
+        {connection && <Link to="/mpesa/connections">Manage connections</Link>}
       </div>
     </section>
 
