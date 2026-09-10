@@ -15,10 +15,14 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run test:mpesa
-      - run: npm run lint
-      - run: npm run build
-      - name: Build React merchant frontend
+      - name: Install backend dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install --no-audit --no-fund && npm run build
+        run: npm install --no-audit --no-fund
+      - name: Run M-Pesa callback tests
+        run: npm run test:mpesa
+      - name: Typecheck backend
+        run: npm run lint
+      - name: Build React/Vite frontend
+        run: npm run build:frontend
