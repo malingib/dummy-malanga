@@ -95,12 +95,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: '01', ResultDesc: 'Unable to record callback' }, { status: 200 })
   }
 
-  const forwarded = new NextRequest(request.url, {
-    method: 'POST',
-    headers: request.headers,
-    body: JSON.stringify(body),
-  })
-  const response = await legacyConfirmation(forwarded)
+  const response = await legacyConfirmation(request)
   const responsePayload = await response.clone().json().catch(() => ({}))
   const processed = response.ok
 
