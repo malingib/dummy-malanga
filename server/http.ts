@@ -93,8 +93,9 @@ export class ApiResponse {
   }
 }
 
+export type NextRequest = ApiRequest
 export const NextRequest = ApiRequest
-
+export type NextResponse = ApiResponse
 export const NextResponse = {
   json(body: unknown, init: ResponseInit = {}) {
     return new ApiResponse(body, init.status || 200)
