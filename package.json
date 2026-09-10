@@ -1,17 +1,17 @@
 {
-  "name": "mpesa-dashboard",
-  "version": "1.0.0",
-  "description": "M-Pesa C2B payment processing backend with React frontend",
+  "name": "mobipay",
+  "version": "2.0.0",
+  "description": "MobiPay merchant payments platform with standalone Node API and React/Vite frontend",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "dev:backend": "next dev",
+    "dev": "tsx server/index.ts",
+    "dev:backend": "tsx server/index.ts",
     "dev:frontend": "npm --prefix frontend run dev",
-    "build": "next build",
-    "build:backend": "next build",
+    "build": "npm run build:frontend",
     "build:frontend": "npm --prefix frontend run build",
-    "start": "next start",
-    "lint": "npx tsc --noEmit",
+    "start": "tsx server/index.ts",
+    "lint": "tsc --noEmit",
     "test:mpesa": "node --test tests/mpesa-callback-rules.test.mjs"
   },
   "dependencies": {
@@ -20,13 +20,13 @@
     "axios": "^1.6.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
-    "next": "^16.0.0",
     "postcss": "^8.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.10.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.19.4",
     "zod": "^3.22.0"
   },
   "devDependencies": {
@@ -45,7 +45,6 @@
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^16.0.0",
     "typescript": "^5.9.3"
   }
 }
