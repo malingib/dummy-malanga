@@ -50,7 +50,7 @@ export class ApiRequest {
     this.bodyPromise = Promise.resolve(body ? JSON.parse(body) : {})
   }
 
-  async json<T = unknown>(): Promise<T> {
+  async json<T = any>(): Promise<T> {
     return (await this.bodyPromise) as T
   }
 
@@ -68,6 +68,21 @@ export class ApiResponse {
   constructor(body: unknown, status = 200) {
     this.body = body
     this.status = status
+  }
+
+  get ok() {
+    return this.status >= 200 && this.status < 300
+  }
+
+  async json<T = any>(): Promise<T> {
+    return this.body as T
+  }
+
+  clone() {
+    const copy = new ApiResponse(this.body, this.status)
+    for (const [key, value] of this.headers.entries()) copy.headers.set(key, value)
+    copy.setCookies = [...this.setCookies]
+    return copy
   }
 
   get cookies() {
