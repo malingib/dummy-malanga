@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { POST as legacyConfirmation } from '@/app/api/mpesa/confirmation/route'
+import { POST as legacyConfirmation } from '@/server/routes/mpesa/confirmation/route'
 import { assertTransactionRouting, attachTransactionRouting, resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
 import { extractC2BIdentifiers, isCallbackBodyTooLarge, validateConfirmationPayload } from '@/lib/mpesa-callback-rules.mjs'
 
