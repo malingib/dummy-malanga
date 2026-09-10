@@ -4,6 +4,7 @@ import { Overview, Payments, Customers } from './MerchantOperations'
 import { PaymentDetailOperations } from './PaymentDetailOperations'
 import { SmsOperations } from './SmsOperations'
 import { ReconciliationOperations, SettingsOperations } from './FinalizationOperations'
+import { MpesaConnectionsOperations } from './MpesaConnectionsOperations'
 import { MpesaActivationJourney } from './MpesaActivationJourney'
 import { DeveloperOperations } from './DeveloperOperations'
 
@@ -22,12 +23,7 @@ const nav: Nav[] = [
 
 function NavItem({ item, onNavigate }: { item: Nav; onNavigate: () => void }) {
   return (
-    <NavLink
-      to={item.path}
-      end={item.path === '/'}
-      onClick={onNavigate}
-      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-    >
+    <NavLink to={item.path} end={item.path === '/'} onClick={onNavigate} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
       <span className="nav-icon" aria-hidden="true">{item.icon}</span>
       <span>{item.label}</span>
     </NavLink>
@@ -36,41 +32,30 @@ function NavItem({ item, onNavigate }: { item: Nav; onNavigate: () => void }) {
 
 function pageLabel(pathname: string) {
   if (pathname.startsWith('/payments/')) return 'Payment details'
+  if (pathname.startsWith('/mpesa/')) return 'M-Pesa connections'
   return nav.find(item => item.path === pathname)?.label ?? 'Payments workspace'
 }
 
 export default function App() {
   const { sidebarOpen, toggleSidebar, environment, setEnvironment } = useUiStore()
   const location = useLocation()
-  const closeSidebar = () => {
-    if (sidebarOpen) toggleSidebar()
-  }
+  const closeSidebar = () => { if (sidebarOpen) toggleSidebar() }
 
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Primary navigation">
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">M</div>
-          <div>
-            <strong>MobiWave</strong>
-            <span>Payments</span>
-          </div>
+          <div><strong>MobiWave</strong><span>Payments</span></div>
         </div>
-
         <div className="nav-label">Workspace</div>
         <nav>{nav.slice(0, 4).map(item => <NavItem key={item.path} item={item} onNavigate={closeSidebar} />)}</nav>
-
         <div className="nav-label">Operations</div>
         <nav>{nav.slice(4, 6).map(item => <NavItem key={item.path} item={item} onNavigate={closeSidebar} />)}</nav>
-
         <div className="nav-label">Platform</div>
         <nav>{nav.slice(6).map(item => <NavItem key={item.path} item={item} onNavigate={closeSidebar} />)}</nav>
-
         <div className="connection-card">
-          <div className="connection-row">
-            <span>M-Pesa</span>
-            <span className="online"><i /> Managed</span>
-          </div>
+          <div className="connection-row"><span>M-Pesa</span><span className="online"><i /> Managed</span></div>
           <small>Connection and activation are managed from M-Pesa.</small>
         </div>
       </aside>
@@ -81,11 +66,7 @@ export default function App() {
         <header className="topbar">
           <div className="topbar-left">
             <button className="menu" onClick={toggleSidebar} aria-label="Open navigation">☰</button>
-            <div className="crumb">
-              <span>Payments</span>
-              <b>/</b>
-              <strong>{pageLabel(location.pathname)}</strong>
-            </div>
+            <div className="crumb"><span>Payments</span><b>/</b><strong>{pageLabel(location.pathname)}</strong></div>
           </div>
           <div className="top-actions">
             <label className="environment-select">
@@ -107,7 +88,7 @@ export default function App() {
             <Route path="/customers" element={<Customers />} />
             <Route path="/reconciliation" element={<ReconciliationOperations />} />
             <Route path="/mpesa" element={<MpesaActivationJourney />} />
-            <Route path="/mpesa/connections" element={<MpesaActivationJourney />} />
+            <Route path="/mpesa/connections" element={<MpesaConnectionsOperations />} />
             <Route path="/sms" element={<SmsOperations />} />
             <Route path="/developers" element={<DeveloperOperations />} />
             <Route path="/settings" element={<SettingsOperations />} />
