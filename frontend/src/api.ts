@@ -1,6 +1,6 @@
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'reversed'
 export type ReconciliationStatus = 'unreconciled' | 'matched' | 'unmatched' | 'duplicate' | 'manual'
-export type ReconciliationException = { id: string; workspace_id: string; reconciliation_run_id?: string | null; transaction_id?: string | null; type: string; severity: string; status: string; title: string; reason?: string | null; amount?: number | string | null; assigned_to?: string | null; resolution_note?: string | null; resolved_at?: string | null; created_at: string; updated_at: string }
+export type ReconciliationException = { id: string; workspace_id: string; reconciliation_run_id?: string; transaction_id?: string; type: string; severity: string; status: string; title: string; reason?: string | null; amount?: number | string | null; assigned_to?: string | null; resolution_note?: string | null; resolved_at?: string | null; created_at: string; updated_at: string }
 export type MpesaActivation = { id: string; workspace_id: string; status: string; environment: string; requested_methods: string[]; notes?: string | null; last_error?: string | null; requested_at: string; reviewed_at?: string | null; completed_at?: string | null }
 export type MpesaActivationState = { activation: MpesaActivation | null; connections: MpesaConnection[]; primary: MpesaConnection | null; journey_status: 'connection_required' | 'verify_connection' | 'callback_setup' | 'payment_test' | 'attention_required' | 'ready' }
 export type WorkspaceSettings = { id: string; business_name: string; business_phone: string; business_email: string; industry?: string | null; shortcode: string; account_format: string; notification_sms: boolean; notification_email: boolean; notification_whatsapp: boolean; developer_webhook: boolean; webhook_url?: string | null; status: string; environment: string; created_at: string; updated_at: string }
@@ -16,7 +16,6 @@ export type SmsTemplate = { id: string; name: string; event_type: string; sender
 export type PaymentNotification = { id: string; channel: string; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
-
 const apiPath = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -38,7 +37,7 @@ export const api = {
   testMpesa: () => request<{ success: boolean; credential_status: string; tested_at?: string; error?: string }>('/api/mpesa/admin', { method: 'POST' }),
   mpesaConnections: () => request<{ success: boolean; data: MpesaConnection[] }>('/api/mpesa/connections'),
   createMpesaConnection: (payload: { shortcode: string; account_type: string; environment: string; consumer_key?: string; consumer_secret?: string; passkey?: string; is_primary?: boolean }) => request<{ success: boolean; data: MpesaConnection }>('/api/mpesa/connections', { method: 'POST', body: JSON.stringify(payload) }),
-  mpesaConnectionAction: (id: string, action: 'verify' | 'register_callbacks' | 'activate' | 'deactivate' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaConnection | null }>('/api/mpesa/connections', { method: 'PATCH', body: JSON.stringify({ id, action, ...(payload || {}) }) ),
+  mpesaConnectionAction: (id: string, action: 'verify' | 'register_callbacks' | 'activate' | 'deactivate' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaConnection | null }>('/api/mpesa/connections', { method: 'PATCH', body: JSON.stringify({ id, action, ...(payload || {}) }) }),
   activation: () => request<{ success: boolean; data: MpesaActivationState }>('/api/mpesa/activation'),
   activationAction: (connection_id: string, action: 'verify' | 'register_callbacks' | 'test', payload?: { phone?: string; amount?: number; reference?: string }) => request<{ success: boolean; data: MpesaActivationState }>('/api/mpesa/activation', { method: 'PATCH', body: JSON.stringify({ connection_id, action, ...(payload || {}) }) }),
   requestActivation: (notes?: string) => request<{ success: boolean; data: MpesaActivation }>('/api/mpesa/activation', { method: 'POST', body: JSON.stringify({ notes }) }),
