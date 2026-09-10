@@ -1,181 +1,134 @@
-# M-Pesa Payment Management System
+# MobiPay
 
-A modern Next.js application for managing M-Pesa C2B payments, member accounts, and payment dispute cases. Features real-time transaction tracking, comprehensive dashboards, and secure API integration.
+MobiPay is a merchant payment operations platform for M-Pesa collections, STK Push, reconciliation, developer APIs, webhooks, SMS notifications, and merchant configuration.
 
-## Features
+The application is now fully independent of Next.js:
 
-- **Transaction Tracking**: Real-time M-Pesa C2B payment monitoring with success/failure status
-- **Member Management**: Organize and manage member profiles with transaction history
-- **Case Management**: Track and resolve payment disputes and failed transactions
-- **Dashboard Analytics**: View key metrics and transaction statistics at a glance
-- **Secure API Integration**: Environment variable-based M-Pesa API configuration
-- **Payment Simulation**: Test C2B callbacks in development environments
+- **Frontend:** React 19 + Vite + React Router + TanStack Query + Zustand
+- **API:** standalone Node.js HTTP server
+- **Database/auth:** Supabase PostgreSQL and Supabase Auth
+- **Payments:** Safaricom Daraja integration through the existing M-Pesa service layer
 
-## Tech Stack
+Supabase migrations are intentionally unchanged by this framework migration.
 
-- **Framework**: Next.js 14+ (App Router)
-- **Database**: Supabase PostgreSQL
-- **Styling**: Tailwind CSS
-- **Language**: TypeScript
-- **API Client**: Supabase JavaScript Client
+## Architecture
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm (recommended) or npm
-- Supabase account
-
-### Installation
-
-1. **Clone and install**:
-   ```bash
-   pnpm install
-   ```
-
-2. **Setup environment variables**:
-   ```bash
-   cp .env.local.example .env.local
-   ```
-
-3. **Configure your environment**:
-   Edit `.env.local` with your Supabase credentials and M-Pesa API keys:
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-   SUPABASE_SERVICE_KEY=your_service_key
-   
-   MPESA_CONSUMER_KEY=your_consumer_key
-   MPESA_CONSUMER_SECRET=your_consumer_secret
-   MPESA_BUSINESS_SHORTCODE=your_shortcode
-   MPESA_PASSKEY=your_passkey
-   ```
-
-4. **Setup database**:
-   Run the migration script in Supabase SQL Editor (`scripts/init-db.sql`)
-
-5. **Start development server**:
-   ```bash
-   pnpm dev
-   ```
-
-   Visit `http://localhost:3000`
-
-## API Endpoints
-
-### M-Pesa Callbacks
-- `POST /api/mpesa/validation` - Validates incoming C2B payments
-- `POST /api/mpesa/confirmation` - Confirms and records C2B payments
-- `POST /api/mpesa/token` - Gets OAuth token for M-Pesa API
-- `POST /api/mpesa/simulate` - Simulates C2B payment for testing
-
-### Dashboard Data
-- `GET /api/dashboard/stats` - Dashboard statistics
-- `GET /api/transactions` - List all transactions
-- `GET /api/members` - List all members
-- `GET /api/cases` - List all payment dispute cases
-
-## Project Structure
-
-```
-├── app/
-│   ├── layout.tsx          # Root layout
-│   ├── page.tsx            # Home page
-│   ├── dashboard/          # Dashboard pages
-│   │   ├── page.tsx        # Main dashboard
-│   │   ├── transactions/   # Transactions page
-│   │   ├── members/        # Members page
-│   │   ├── cases/          # Cases page
-│   │   └── settings/       # Settings page
-│   └── api/                # API routes
-│       ├── mpesa/          # M-Pesa endpoints
-│       ├── transactions/   # Transaction queries
-│       ├── members/        # Member queries
-│       └── cases/          # Case queries
-├── components/             # React components
-├── lib/
-│   ├── supabase.ts        # Supabase client
-│   ├── db.ts              # Database queries
-│   ├── mpesa.ts           # M-Pesa utilities
-│   ├── validation.ts      # Payment validation
-│   └── types.ts           # TypeScript types
-└── scripts/
-    └── init-db.sql        # Database migration
+```text
+Browser
+   │
+   ▼
+React + Vite
+   │ /api/*
+   ▼
+Node.js API (:4000)
+   ├── merchant operations
+   ├── STK Push
+   ├── C2B validation / confirmation
+   ├── M-Pesa connections and activation
+   ├── reconciliation
+   ├── developer API keys
+   ├── webhooks and deliveries
+   └── SMS operations
+          │
+          ├── Supabase
+          └── Safaricom Daraja
 ```
 
-## Database Schema
+The existing API contracts remain under `/api/*`, so the merchant frontend and external M-Pesa callback URLs do not need to change merely because the web framework changed.
 
-### transactions
-- `id`: UUID (primary key)
-- `phone`: Phone number
-- `amount`: Transaction amount
-- `bill_reference`: Bill reference number
-- `merchant_request_id`: Merchant request ID
-- `result_code`: Result code (0 = success)
-- `result_desc`: Result description
-- `created_at`: Transaction timestamp
+## Local development
 
-### members
-- `id`: UUID (primary key)
-- `name`: Member full name
-- `phone`: Phone number
-- `email`: Email address
-- `id_number`: ID number
-- `created_at`: Registration timestamp
+Install backend dependencies:
 
-### cases
-- `id`: UUID (primary key)
-- `case_number`: Case reference number
-- `phone`: Associated phone number
-- `description`: Case description
-- `resolved_at`: Resolution timestamp (null if open)
-- `created_at`: Case creation timestamp
-
-## Environment Variables
-
-See `.env.local.example` for all required variables. Key ones:
-
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Public anon key
-- `SUPABASE_SERVICE_KEY` - Service role key (for server-side operations)
-- `MPESA_*` - M-Pesa API credentials
-
-## Development
-
-### Running Tests
 ```bash
-pnpm test
+npm install
 ```
 
-### Building for Production
+Install frontend dependencies:
+
 ```bash
-pnpm build
-pnpm start
+npm --prefix frontend install
 ```
+
+Start the API:
+
+```bash
+npm run dev
+```
+
+Start the Vite frontend in a second terminal:
+
+```bash
+npm run dev:frontend
+```
+
+The Vite development server runs on port `5173` and proxies `/api` to the Node API on port `4000`.
+
+## Environment
+
+Copy the example file:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Configure Supabase, Daraja, webhook encryption, SMS, and application variables there. Server secrets must never be placed in the Vite frontend environment.
+
+For a separately hosted frontend, set `VITE_API_BASE_URL` to the public API origin. When frontend and API share an origin behind a reverse proxy, leave it empty and route `/api/*` to Node.
+
+## Commands
+
+```bash
+npm run dev            # standalone Node API
+npm run dev:frontend   # React/Vite development server
+npm run lint           # TypeScript verification
+npm run test:mpesa     # M-Pesa callback tests
+npm run build:frontend # production Vite build
+npm start              # standalone Node API
+```
+
+## Health check
+
+The API exposes:
+
+```text
+GET /health
+GET /api/health
+```
+
+A healthy response identifies the service as `mobipay-api` and the runtime as the standalone Node HTTP server.
+
+## API surface
+
+The backend preserves the existing endpoint families:
+
+- `/api/mpesa/*`
+- `/api/payments/*`
+- `/api/transactions/*`
+- `/api/members/*`
+- `/api/cases`
+- `/api/settings`
+- `/api/developer/*`
+- `/api/sms/*`
+- `/api/onboarding`
+- `/api/dashboard/stats`
+- `/api/v1/payments/*`
+
+M-Pesa validation and confirmation callbacks continue to use the same public paths.
 
 ## Deployment
 
-### Deploy to Vercel
+See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for standalone API hosting, static frontend hosting, environment variables, and reverse-proxy routing.
 
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+## Security
 
-## Important Security Notes
-
-- Never commit `.env.local` - it contains sensitive credentials
-- Use Supabase Row Level Security (RLS) for data protection
-- Validate all incoming M-Pesa requests with your passkey
-- Keep API credentials secure and rotate regularly
-
-## Support
-
-For issues or questions:
-1. Check the logs in `/app/api` for debugging
-2. Review Supabase dashboard for data integrity
-3. Verify M-Pesa credentials are correct
+- Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only.
+- Keep M-Pesa credentials server-side only.
+- Keep webhook encryption keys server-side only.
+- Use HTTPS for production API and callback endpoints.
+- Set `FRONTEND_ORIGIN` explicitly in production.
+- Keep Supabase RLS enabled for data protection.
+- Rotate API keys and webhook secrets when required.
 
 ## License
 
