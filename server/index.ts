@@ -5,6 +5,10 @@ import { ApiRequest, ApiResponse, withRequestContext, writeResponse } from './ht
 type HandlerModule = Record<string, any>
 type Route = { pattern: string; load: () => Promise<HandlerModule> }
 
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 1024 * 1024)
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 30_000)
+const HEADER_TIMEOUT_MS = Number(process.env.HEADER_TIMEOUT_MS || 10_000)
+
 const routes: Route[] = [
   ['admin/reconcile', 'server/routes/admin/reconcile/route.ts'],
   ['cases', 'server/routes/cases/route.ts'],
@@ -63,28 +67,72 @@ function match(pattern: string, pathname: string): Record<string, string> | null
   return params
 }
 
-async function readBody(req: http.IncomingMessage): Promise<string> {
-  const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-  return Buffer.concat(chunks).toString('utf8')
+function setSecurityHeaders(res: http.ServerResponse) {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.setHeader('X-Frame-Options', 'DENY')
+  res.setHeader('Referrer-Policy', 'no-referrer')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site')
 }
 
 function cors(req: http.IncomingMessage, res: http.ServerResponse) {
-  const configuredOrigin = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN
+  const configuredOrigins = (process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
   const requestOrigin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined
-  const origin = configuredOrigin || requestOrigin
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin)
+  if (requestOrigin && configuredOrigins.includes(requestOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin)
     res.setHeader('Access-Control-Allow-Credentials', 'true')
     res.setHeader('Vary', 'Origin')
   }
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key, X-Callback-Validation-Token, X-Cron-Secret')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
+  res.setHeader('Access-Control-Max-Age', '600')
+}
+
+function reject(res: http.ServerResponse, status: number, error: string) {
+  res.statusCode = status
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  return res.end(JSON.stringify({ error }))
+}
+
+function isCallbackRoute(pathname: string) {
+  return pathname === '/api/mpesa/confirmation' ||
+    pathname === '/api/mpesa/c2b/confirmation' ||
+    pathname === '/api/mpesa/c2b/validation' ||
+    pathname === '/api/mpesa/stk/callback' ||
+    pathname === '/api/mpesa/validation'
+}
+
+async function readBody(req: http.IncomingMessage): Promise<string> {
+  const contentLength = Number(req.headers['content-length'] || 0)
+  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+    throw Object.assign(new Error('Request body too large.'), { statusCode: 413 })
+  }
+
+  const chunks: Buffer[] = []
+  let total = 0
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buffer.length
+    if (total > MAX_BODY_BYTES) {
+      req.destroy()
+      throw Object.assign(new Error('Request body too large.'), { statusCode: 413 })
+    }
+    chunks.push(buffer)
+  }
+  return Buffer.concat(chunks).toString('utf8')
 }
 
 const server = http.createServer(async (req, res) => {
+  setSecurityHeaders(res)
   cors(req, res)
-  if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end() }
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    return res.end()
+  }
 
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
   if (url.pathname === '/health' || url.pathname === '/api/health') {
@@ -92,18 +140,17 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     return res.end(JSON.stringify({ status: 'ok', service: 'mobipay-api', framework: 'node-http', timestamp: new Date().toISOString() }))
   }
-  if (!url.pathname.startsWith('/api/')) {
-    res.statusCode = 404
-    return res.end(JSON.stringify({ error: 'Not found' }))
+  if (url.pathname === '/ready' || url.pathname === '/api/ready') {
+    const ready = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+    res.statusCode = ready ? 200 : 503
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    return res.end(JSON.stringify({ status: ready ? 'ready' : 'not_ready', service: 'mobipay-api' }))
   }
+  if (!url.pathname.startsWith('/api/')) return reject(res, 404, 'Not found.')
 
   const pathname = url.pathname.slice('/api'.length).replace(/\/$/, '') || '/'
   const route = routes.find((candidate) => match(candidate.pattern, pathname))
-  if (!route) {
-    res.statusCode = 404
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    return res.end(JSON.stringify({ error: 'API route not found.' }))
-  }
+  if (!route) return reject(res, 404, 'API route not found.')
 
   try {
     const body = await readBody(req)
@@ -114,9 +161,9 @@ const server = http.createServer(async (req, res) => {
     const module = await route.load()
     const handler = module[req.method || 'GET']
     if (typeof handler !== 'function') {
-      res.statusCode = 405
-      res.setHeader('Allow', Object.keys(module).filter((key) => ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(key)).join(', '))
-      return res.end(JSON.stringify({ error: 'Method not allowed.' }))
+      const allowed = Object.keys(module).filter((key) => ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(key))
+      if (allowed.length) res.setHeader('Allow', allowed.join(', '))
+      return reject(res, 405, 'Method not allowed.')
     }
     const response = await withRequestContext(request, () => handler(request, { params: Promise.resolve(params) }))
     if (response instanceof ApiResponse) return writeResponse(res, response)
@@ -124,13 +171,39 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     return res.end(JSON.stringify(response ?? {}))
   } catch (error) {
-    console.error('[mobipay-api] request failed', error)
-    res.statusCode = 500
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    return res.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error.' }))
+    const statusCode = typeof error === 'object' && error && 'statusCode' in error && typeof error.statusCode === 'number'
+      ? error.statusCode
+      : 500
+    if (statusCode === 413) return reject(res, 413, 'Request body too large.')
+    console.error('[mobipay-api] request failed', {
+      method: req.method,
+      path: req.url,
+      callback: isCallbackRoute(url.pathname),
+      error: error instanceof Error ? error.message : error,
+    })
+    return reject(res, 500, 'Internal server error.')
   }
 })
+
+server.requestTimeout = REQUEST_TIMEOUT_MS
+server.headersTimeout = HEADER_TIMEOUT_MS
+server.keepAliveTimeout = 5_000
+server.maxRequestsPerSocket = 1_000
 
 const port = Number(process.env.PORT || 4000)
 const host = process.env.HOST || '0.0.0.0'
 server.listen(port, host, () => console.log(`[mobipay-api] listening on ${host}:${port}`))
+
+function shutdown(signal: string) {
+  console.log(`[mobipay-api] received ${signal}; shutting down`)
+  server.close((error) => {
+    if (error) {
+      console.error('[mobipay-api] graceful shutdown failed', error)
+      process.exitCode = 1
+    }
+  })
+  setTimeout(() => process.exit(0), 10_000).unref()
+}
+
+process.once('SIGTERM', () => shutdown('SIGTERM'))
+process.once('SIGINT', () => shutdown('SIGINT'))
