@@ -1,4 +1,4 @@
-import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import { useUiStore } from './store'
 import { Overview, Payments, Customers } from './MerchantOperations'
 import { PaymentDetailOperations } from './PaymentDetailOperations'
@@ -23,7 +23,12 @@ const nav: Nav[] = [
 
 function NavItem({ item, onNavigate }: { item: Nav; onNavigate: () => void }) {
   return (
-    <NavLink to={item.path} end={item.path === '/'} onClick={onNavigate} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+    <NavLink
+      to={item.path}
+      end={item.path === '/'}
+      onClick={onNavigate}
+      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+    >
       <span className="nav-icon" aria-hidden="true">{item.icon}</span>
       <span>{item.label}</span>
     </NavLink>
@@ -44,10 +49,10 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Primary navigation">
-        <div className="brand">
+        <Link to="/" className="brand" onClick={closeSidebar} aria-label="MobiWave Payments overview">
           <div className="brand-mark" aria-hidden="true">M</div>
           <div><strong>MobiWave</strong><span>Payments</span></div>
-        </div>
+        </Link>
         <div className="nav-label">Workspace</div>
         <nav>{nav.slice(0, 4).map(item => <NavItem key={item.path} item={item} onNavigate={closeSidebar} />)}</nav>
         <div className="nav-label">Operations</div>
