@@ -72,7 +72,6 @@ function setSecurityHeaders(res: http.ServerResponse) {
   res.setHeader('X-Frame-Options', 'DENY')
   res.setHeader('Referrer-Policy', 'no-referrer')
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-site')
 }
 
 function cors(req: http.IncomingMessage, res: http.ServerResponse) {
