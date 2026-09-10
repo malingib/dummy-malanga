@@ -1,5 +1,4 @@
 node_modules
-.next
 .env*
 !.env.local.example
 *.log
@@ -7,9 +6,9 @@ node_modules
 !package.json
 !tsconfig.json
 !components.json
-!package-lock.json
-!pnpm-lock.yaml
 out
 build
 dist
+.vite
+coverage
 .codex
