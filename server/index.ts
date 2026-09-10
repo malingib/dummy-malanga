@@ -69,17 +69,21 @@ async function readBody(req: http.IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-function cors(res: http.ServerResponse) {
-  const origin = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN || '*'
-  res.setHeader('Access-Control-Allow-Origin', origin)
-  res.setHeader('Access-Control-Allow-Credentials', 'true')
+function cors(req: http.IncomingMessage, res: http.ServerResponse) {
+  const configuredOrigin = process.env.FRONTEND_ORIGIN || process.env.CORS_ORIGIN
+  const requestOrigin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined
+  const origin = configuredOrigin || requestOrigin
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Vary', 'Origin')
+  }
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Idempotency-Key')
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
-  res.setHeader('Vary', 'Origin')
 }
 
 const server = http.createServer(async (req, res) => {
-  cors(res)
+  cors(req, res)
   if (req.method === 'OPTIONS') { res.statusCode = 204; return res.end() }
 
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
