@@ -35,7 +35,7 @@ export class ApiRequest {
   readonly headers: Headers
   readonly nextUrl: URL
   private readonly raw: IncomingMessage
-  private bodyPromise?: Promise<unknown>
+  private readonly bodyPromise: Promise<unknown>
 
   constructor(raw: IncomingMessage, body: string, protocol = process.env.PUBLIC_API_PROTOCOL || 'http') {
     this.raw = raw
@@ -71,8 +71,9 @@ export class ApiResponse {
   }
 
   get cookies() {
+    const response = this
     return {
-      set: (name: string, value: string, options: CookieOptions = {}) => {
+      set(name: string, value: string, options: CookieOptions = {}) {
         const parts = [`${name}=${encodeURIComponent(value)}`]
         if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(options.maxAge)}`)
         if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`)
@@ -80,11 +81,9 @@ export class ApiResponse {
         if (options.secure) parts.push('Secure')
         if (options.path) parts.push(`Path=${options.path}`)
         if (options.sameSite) parts.push(`SameSite=${options.sameSite[0].toUpperCase()}${options.sameSite.slice(1)}`)
-        this.setCookies.push(parts.join('; '))
+        response.setCookies.push(parts.join('; '))
       },
-      get headers() {
-        return this.setCookies
-      },
+      headers: response.setCookies,
     }
   }
 
@@ -93,13 +92,12 @@ export class ApiResponse {
   }
 }
 
-export type NextRequest = ApiRequest
-export const NextRequest = ApiRequest
-export type NextResponse = ApiResponse
-export const NextResponse = {
-  json(body: unknown, init: ResponseInit = {}) {
-    return new ApiResponse(body, init.status || 200)
-  },
+export class NextRequest extends ApiRequest {}
+
+export class NextResponse extends ApiResponse {
+  static json(body: unknown, init: ResponseInit = {}) {
+    return new NextResponse(body, init.status || 200)
+  }
 }
 
 export async function cookies(): Promise<CookieStore> {
