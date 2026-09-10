@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -19,6 +19,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["server/**/*.ts", "app/api/**/*.ts", "lib/**/*.ts", "tests/**/*.ts"],
+  "include": ["server/**/*.ts", "app/api/**/*.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "frontend"]
 }
