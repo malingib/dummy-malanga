@@ -4,6 +4,10 @@
   "description": "MobiPay merchant payments platform with standalone Node API and React/Vite frontend",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "tsx server/index.ts",
     "dev:backend": "tsx server/index.ts",
