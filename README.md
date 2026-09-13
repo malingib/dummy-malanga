@@ -8,8 +8,9 @@ The application is now fully independent of Next.js:
 - **API:** standalone Node.js HTTP server
 - **Database/auth:** Supabase PostgreSQL and Supabase Auth
 - **Payments:** Safaricom Daraja integration through the existing M-Pesa service layer
+- **Production model:** payment technology/orchestration operating within an appropriately licensed PSP arrangement
 
-Supabase migrations are intentionally unchanged by this framework migration.
+Supabase migrations are intentionally unchanged by the framework migration.
 
 ## Architecture
 
@@ -32,9 +33,26 @@ Node.js API (:4000)
           │
           ├── Supabase
           └── Safaricom Daraja
+                  │
+                  ▼
+             Licensed PSP boundary
 ```
 
 The existing API contracts remain under `/api/*`, so the merchant frontend and external M-Pesa callback URLs do not need to change merely because the web framework changed.
+
+## Production operating model
+
+MobiPay's initial production deployment is **partner PSP**. The application includes a server-side production gate that blocks production payment initiation unless:
+
+```text
+MOBIPAY_OPERATING_MODE=partner_psp
+PSP_LICENSE_STATUS=verified
+PSP_PROVIDER_ID=<approved partner identifier>
+```
+
+This is a technical control, not legal authorization. The licensed partner agreement must define settlement ownership, customer-funds handling, KYC/AML duties, transaction limits, disputes, reporting and incident response.
+
+See [`docs/PSP-OPERATING-MODEL.md`](./docs/PSP-OPERATING-MODEL.md) and [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md).
 
 ## Local development
 
@@ -72,7 +90,7 @@ Copy the example file:
 cp .env.local.example .env.local
 ```
 
-Configure Supabase, Daraja, webhook encryption, SMS, and application variables there. Server secrets must never be placed in the Vite frontend environment.
+Configure Supabase, Daraja, licensed PSP mode, webhook encryption, SMS, and application variables there. Server secrets must never be placed in the Vite frontend environment.
 
 For a separately hosted frontend, set `VITE_API_BASE_URL` to the public API origin. When frontend and API share an origin behind a reverse proxy, leave it empty and route `/api/*` to Node.
 
@@ -93,7 +111,9 @@ The API exposes:
 
 ```text
 GET /health
+GET /ready
 GET /api/health
+GET /api/ready
 ```
 
 A healthy response identifies the service as `mobipay-api` and the runtime as the standalone Node HTTP server.
@@ -125,6 +145,7 @@ See [`DEPLOYMENT.md`](./DEPLOYMENT.md) for standalone API hosting, static fronte
 - Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only.
 - Keep M-Pesa credentials server-side only.
 - Keep webhook encryption keys server-side only.
+- Keep licensed PSP and settlement credentials server-side only.
 - Use HTTPS for production API and callback endpoints.
 - Set `FRONTEND_ORIGIN` explicitly in production.
 - Keep Supabase RLS enabled for data protection.
