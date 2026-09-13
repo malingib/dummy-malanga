@@ -2,10 +2,6 @@ node_modules
 .env*
 !.env.local.example
 *.log
-*.json
-!package.json
-!tsconfig.json
-!components.json
 out
 build
 dist
@@ -13,3 +9,4 @@ dist
 .vite
 coverage
 .codex
+.DS_Store
