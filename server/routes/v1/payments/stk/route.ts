@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { authenticateApiKey } from '@/lib/api-auth';
+import { assertProductionPaymentBoundary } from '@/lib/regulatory';
 import { formatPhoneNumber, initiateStkPush, isValidAmount, isValidPhoneNumber } from '@/lib/mpesa';
 
 export async function POST(request: NextRequest) {
@@ -24,8 +25,9 @@ export async function POST(request: NextRequest) {
       if (existing.request_hash !== requestHash) return NextResponse.json({ error: 'Idempotency key was already used with a different request.' }, { status: 409 });
       return NextResponse.json(existing.response_body, { status: existing.response_status });
     }
-    const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('id,shortcode,payment_methods,status').eq('id', auth.workspaceId).maybeSingle();
+    const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('id,shortcode,payment_methods,status,environment').eq('id', auth.workspaceId).maybeSingle();
     if (!workspace) return NextResponse.json({ error: 'Payment workspace not found.' }, { status: 404 });
+    assertProductionPaymentBoundary(workspace.environment);
     if (workspace.status !== 'ready_for_credentials' && workspace.status !== 'active') return NextResponse.json({ error: 'Payment workspace is not ready.' }, { status: 409 });
     if (!workspace.payment_methods?.includes('stk')) return NextResponse.json({ error: 'STK Push is not enabled for this workspace.' }, { status: 400 });
     const callbackUrl = `${request.nextUrl.origin}/api/mpesa/stk/callback`;
@@ -37,6 +39,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(responseBody);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unable to initiate STK Push.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes('Production payment initiation is disabled') ? 503 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
