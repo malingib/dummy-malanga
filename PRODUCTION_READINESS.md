@@ -27,12 +27,28 @@ Never expose:
 - callback/cron secrets
 - administrative credentials
 - private API credentials
+- licensed PSP credentials
+- settlement credentials
 
 ### API
 
 The API owns privileged database access, M-Pesa credentials, callback processing, reconciliation, developer keys, webhook secrets, and other server-side integrations.
 
-## 3. Required production configuration
+## 3. Licensed PSP operating model
+
+MobiPay's initial production model is **partner PSP**: MobiPay provides payment technology/orchestration while the applicable regulated services remain within the scope of an appropriately licensed PSP arrangement.
+
+Production payment initiation is technically blocked unless all of the following are configured server-side:
+
+- `MOBIPAY_OPERATING_MODE=partner_psp`
+- `PSP_LICENSE_STATUS=verified`
+- `PSP_PROVIDER_ID` is configured
+
+This is a technical release gate, not a substitute for legal/regulatory authorization. The partner agreement must define settlement ownership, customer-funds handling, KYC/AML responsibilities, transaction limits, complaints/disputes, reporting, audit rights and incident response.
+
+See [`docs/PSP-OPERATING-MODEL.md`](./docs/PSP-OPERATING-MODEL.md).
+
+## 4. Required production configuration
 
 At minimum configure:
 
@@ -41,12 +57,15 @@ At minimum configure:
 - `PUBLIC_API_ORIGIN`
 - `PUBLIC_API_PROTOCOL=https`
 - `FRONTEND_ORIGIN`
+- `MOBIPAY_OPERATING_MODE=partner_psp`
+- `PSP_PROVIDER_ID`
+- `PSP_LICENSE_STATUS=verified`
 - M-Pesa Daraja credentials and callback configuration required by the selected environment
 - webhook/callback secrets used by the deployed routes
 
 Use `.env.local.example` as the configuration reference. Never commit real `.env` files or credentials.
 
-## 4. API hardening baseline
+## 5. API hardening baseline
 
 The standalone API currently provides:
 
@@ -59,10 +78,13 @@ The standalone API currently provides:
 - health and readiness endpoints
 - graceful SIGTERM/SIGINT shutdown
 - callback-specific route handling
+- idempotent public STK requests
+- tenant-safe payment routing
+- production PSP boundary enforcement
 
 Production deployments should additionally place the API behind TLS termination and a WAF/rate limiter where appropriate.
 
-## 5. Deployment topology
+## 6. Deployment topology
 
 ```text
                     HTTPS
@@ -79,11 +101,14 @@ Browser ────────────────────────
                            ▼            ▼
                        Supabase     Safaricom
                         DB/Auth       Daraja
+                                        │
+                                        ▼
+                              Licensed PSP boundary
 ```
 
 The frontend and API may share an origin behind a reverse proxy, or the API may have a separate public origin.
 
-## 6. Release gate
+## 7. Release gate
 
 Every release to `main` must pass:
 
@@ -98,7 +123,7 @@ GitHub Actions runs the same verification sequence on pushes to `main` and pull 
 
 The CI runtime is pinned to Node 24, matching `.nvmrc` and the `engines` declarations.
 
-## 7. Post-deployment checks
+## 8. Post-deployment checks
 
 Run:
 
@@ -111,20 +136,21 @@ Then verify:
 
 1. frontend loads without API errors;
 2. authenticated merchant access works;
-3. STK Push can be initiated in the configured environment;
-4. M-Pesa callbacks are reachable and accepted;
-5. transaction status/reconciliation is recorded correctly;
-6. webhook delivery and retry behaviour is observable;
-7. logs do not contain credentials or sensitive payment data.
+3. the licensed PSP configuration is verified;
+4. STK Push can be initiated in the configured environment;
+5. M-Pesa callbacks are reachable and accepted;
+6. transaction status/reconciliation is recorded correctly;
+7. webhook delivery and retry behaviour is observable;
+8. logs do not contain credentials or sensitive payment data.
 
-## 8. Dependency maintenance
+## 9. Dependency maintenance
 
 The repository uses separate npm dependency trees for the API/root workspace and the React frontend. Dependabot is configured to review npm dependencies monthly.
 
 Until lockfiles are deliberately introduced and validated for both trees, CI uses `npm install` rather than `npm ci`. Do not switch CI to `npm ci` without committing and testing the corresponding lockfiles.
 
-## 9. Operational ownership
+## 10. Operational ownership
 
 Production secrets belong in the hosting provider's secret manager, not GitHub source files. Rotate credentials after personnel changes, suspected exposure, or provider-recommended intervals.
 
-The initial MobiPay operating model assumes payment services are delivered within the scope of the applicable licensed PSP arrangement. Regulatory responsibility, settlement ownership, customer funds handling, and transaction limits must remain explicitly defined in the commercial/technical agreement with the licensed partner.
+The production software baseline is technically prepared for partner onboarding and sandbox validation. It does not claim independent PSP authorization, Safaricom production approval, production credentials, or a right to hold customer funds outside the applicable licensed arrangement.
