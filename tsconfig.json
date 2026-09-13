@@ -12,9 +12,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "next/server": ["./server/http.ts"],
-      "next/headers": ["./server/http.ts"]
+      "@/*": ["./*"]
     },
     "noEmit": true,
     "types": ["node"]
