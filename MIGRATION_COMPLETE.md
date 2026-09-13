@@ -1,199 +1,84 @@
-# ✅ Migration to Real Database Complete
+# MobiPay Migration & Verification Complete
 
-## What Changed
+## Current architecture
 
-### Removed (All Mock Data Gone)
-❌ Mock transaction data in `/api/transactions`
-❌ Mock member data in `/api/members`  
-❌ Mock case data in `/api/cases`
-❌ Mock stats in `/api/dashboard/stats`
-❌ Hardcoded data in all frontend components
+MobiPay is now a framework-independent payment operations platform with:
 
-### Added (Real Database Integration)
-✅ Full Supabase PostgreSQL integration
-✅ Database schema with 5 tables
-✅ 50+ database query functions
-✅ Real-time data from Supabase
-✅ Search and filter on real data
-✅ Transaction aggregation and stats
+- React 19 + Vite frontend in `frontend/`;
+- standalone Node.js HTTP API in `server/`;
+- Supabase PostgreSQL/Auth integration;
+- Safaricom Daraja M-Pesa integration;
+- payment transactions and reconciliation;
+- STK Push and M-Pesa callback processing;
+- developer API keys and webhooks;
+- SMS operations and merchant configuration.
 
-## API Routes - Before vs After
+The old Next.js runtime is no longer part of the deployment model. `server/http.ts` is a small compatibility layer used by migrated route handlers; the application itself runs on Node's native HTTP server.
 
-### /api/transactions
-**Before:** Returned 3 hardcoded transaction objects
-**After:** Queries Supabase `transactions` table, returns ALL real transactions
+## Completed stabilization work
 
-### /api/members
-**Before:** Returned 2 hardcoded member objects
-**After:** Queries Supabase `members` table, supports search and pagination
+- Removed obsolete Next.js TypeScript path aliases.
+- Corrected the published `@types/d3-timer` dependency version.
+- Restored the compatibility aliases required by the migrated route handlers.
+- Corrected stale build/migration documentation.
+- Added architecture/security auditing to CI.
+- Added M-Pesa callback regression tests to CI.
+- Added backend TypeScript verification to CI.
+- Added React/Vite production builds to CI.
+- Pinned the development/CI runtime to Node 24.
+- Corrected repository ignore rules so JSON configuration files are not accidentally ignored.
+- Added monthly npm dependency maintenance through Dependabot.
+- Added a production-readiness standard in `PRODUCTION_READINESS.md`.
 
-### /api/cases
-**Before:** Returned 2 hardcoded case objects
-**After:** Queries Supabase `cases` table, supports filtering
+## Verification
 
-### /api/dashboard/stats
-**Before:** Returned hardcoded stats (1243 transactions, 356 members, etc)
-**After:** Aggregates real data:
-- Counts actual transactions from database
-- Sums actual amounts from trans_amount field
-- Counts successful vs failed transactions
-- Counts actual members
-- Counts actual open cases
+The production verification gate is:
 
-## Frontend Pages - Before vs After
-
-### Dashboard Page
-**Before:** Displayed fake statistics
-**After:** Shows real stats from database with live counts
-
-### Transactions Page
-**Before:** Showed 3 demo transactions
-**After:** Shows ALL transactions from database, real search/filter
-
-### Members Page
-**Before:** Showed 2 demo members
-**After:** Shows ALL members from database, real search
-
-### Cases Page
-**Before:** Showed 2 demo cases
-**After:** Shows ALL cases from database, real filter
-
-## Database Tables Created
-
-```sql
--- 5 tables with proper structure:
-transactions    -- M-Pesa payment records
-members         -- Member profiles
-cases           -- Dispute/case management
-validation_logs -- Validation attempt logs
-callback_logs   -- M-Pesa callback logs
+```bash
+npm run audit:architecture
+npm run test:mpesa
+npm run lint
+npm run build:frontend
 ```
 
-## Key Implementation Details
+The GitHub Actions `CI` workflow runs the same gate for pushes to `main` and pull requests targeting `main`.
 
-### Database Queries (lib/db.ts)
-All functions now use real Supabase queries:
-- `getTransactions()` - Query with filters
-- `getMembers()` - Query with search
-- `getCases()` - Query with status filter
-- `createTransaction()` - Insert new transaction
-- `createMember()` - Insert new member
-- And 40+ more functions
+## Deployment model
 
-### Supabase Client (lib/supabase.ts)
-```typescript
-export const supabase = createClient(url, anonKey)
-export const supabaseAdmin = createClient(url, serviceRoleKey)
+### Frontend
+
+Build and deploy `frontend/dist` to a static host such as Vercel, Cloudflare Pages, Netlify, or equivalent.
+
+### API
+
+Run the standalone Node service:
+
+```bash
+npm install --omit=dev --no-audit --no-fund
+npm start
 ```
 
-### API Data Flow
-```
-Frontend Component
-  ↓ fetch('/api/transactions')
-API Route Handler (/api/transactions/route.ts)
-  ↓ getTransactions()
-Database Library (/lib/db.ts)
-  ↓ supabase.from('transactions').select()
-Supabase Client (/lib/supabase.ts)
-  ↓
-PostgreSQL Database (Supabase)
-  ↓ returns real data
-Frontend displays real data
-```
+The default API port is `4000`.
 
-## Files Modified
+### Database and authentication
 
-### API Routes
-- `/app/api/transactions/route.ts` - Now queries database
-- `/app/api/members/route.ts` - Now queries database
-- `/app/api/cases/route.ts` - Now queries database
-- `/app/api/dashboard/stats/route.ts` - Now aggregates real data
+Supabase remains the database/authentication layer. Server-side privileged access stays inside the API runtime.
 
-### Frontend Pages
-- `/app/dashboard/page.tsx` - Fetches real stats
-- `/app/dashboard/transactions/page.tsx` - Fetches real transactions
-- `/app/dashboard/members/page.tsx` - Fetches real members
-- `/app/dashboard/cases/page.tsx` - Fetches real cases
+### M-Pesa
 
-### Database
-- `scripts/init-db.sql` - Updated schema with all fields
+Daraja credentials and callback configuration remain server-side. Existing callback paths are preserved.
 
-### Documentation
-- `REAL_DATABASE_IMPLEMENTATION.md` - Full implementation details
-- `SETUP_DATABASE.md` - Step-by-step setup guide
+## Production readiness
 
-## Testing Checklist
+The codebase has a verified build baseline, but production activation still requires environment-specific configuration and operational checks:
 
-- [ ] Run init-db.sql migration in Supabase
-- [ ] Start app: `pnpm dev`
-- [ ] Visit `/dashboard` - Should load (0 stats initially)
-- [ ] Visit `/dashboard/members/import` - Import test members
-- [ ] Visit `/dashboard/members` - Should show imported members
-- [ ] Visit `/dashboard/transactions` - Should be empty initially
-- [ ] Visit `/dashboard/cases` - Should be empty initially
-- [ ] Search on members page - Should work on real data
-- [ ] Add test transaction via simulation
-- [ ] See transaction appear on transactions page
+1. Configure production Supabase credentials.
+2. Configure the applicable Daraja production credentials and callback URLs.
+3. Configure explicit frontend/API origins and HTTPS.
+4. Configure webhook/callback/cron secrets in the hosting provider's secret manager.
+5. Run `/health` and `/ready` checks after deployment.
+6. Perform a controlled end-to-end M-Pesa transaction test.
+7. Confirm reconciliation, webhook delivery, logging, and monitoring.
+8. Confirm the applicable licensed-PSP operating boundaries before processing live customer funds.
 
-## Zero Hardcoding
-
-Every piece of data now comes from:
-1. **Supabase PostgreSQL Database** - Real persistent storage
-2. **Environment Variables** - For configuration
-3. **User Input** - Via forms and API calls
-
-Nothing is hardcoded anymore. Everything is dynamic and real.
-
-## Production Ready
-
-✅ Full database integration
-✅ Proper error handling
-✅ TypeScript types for all data
-✅ Environment-based configuration
-✅ RLS policies for security
-✅ Indexes for performance
-✅ Proper timestamps
-✅ Data validation
-
-## Next Steps
-
-1. **Run Database Migration**
-   - Open Supabase SQL Editor
-   - Copy scripts/init-db.sql
-   - Execute migration
-
-2. **Start Application**
-   - `pnpm dev`
-   - Open http://localhost:3000
-
-3. **Add Test Data**
-   - Use member import page
-   - Or Supabase dashboard
-
-4. **Test Features**
-   - Check dashboard stats
-   - Search members
-   - Filter transactions
-   - Manage cases
-
-5. **Deploy**
-   - All env vars already configured in Vercel
-   - Just push to GitHub
-   - Vercel deploys automatically
-
-## Summary
-
-You now have a **production-ready M-Pesa Dashboard** with:
-- ✅ Real Supabase PostgreSQL database
-- ✅ Complete schema for transactions, members, cases
-- ✅ All APIs connected to real data
-- ✅ All frontend pages displaying real data
-- ✅ Search and filtering on real data
-- ✅ Zero mock data or hardcoding
-- ✅ Full TypeScript support
-- ✅ Ready for production deployment
-
-**All mock data has been completely removed.**
-**All backend and frontend are fully integrated with real database.**
-
-The application is ready to use with real data!
+See `DEPLOYMENT.md` and `PRODUCTION_READINESS.md` for the operational standard.
