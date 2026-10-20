@@ -91,6 +91,8 @@ Deploy `frontend/dist` to the static host. For a separately hosted API, set:
 
 ```text
 VITE_API_BASE_URL=https://api.example.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_or_publishable_key
 ```
 
 If frontend and API share an origin through a reverse proxy, leave `VITE_API_BASE_URL` empty and proxy `/api/*` to the Node service.

@@ -1,21 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
+import { authorizeWorkspace } from '@/lib/workspace-auth'
 
-async function workspaceId() { return (await cookies()).get('mobiwave_workspace_id')?.value || null }
+const allowedStatuses = new Set(['open', 'in_review', 'resolved', 'ignored'])
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const workspace = await workspaceId()
-    if (!workspace) return NextResponse.json({ error: 'Payment workspace not configured.' }, { status: 401 })
+    const access = await authorizeWorkspace(request)
+    if (!access) return NextResponse.json({ error: 'Authentication or workspace access required.' }, { status: 401 })
     const { id } = await params
     const body = await request.json().catch(() => ({}))
-    const allowed = ['status', 'severity', 'assigned_to', 'resolution_note', 'reason', 'title'] as const
     const patch: Record<string, unknown> = {}
-    for (const key of allowed) if (body[key] !== undefined) patch[key] = body[key]
-    if (body.status === 'resolved') patch.resolved_at = new Date().toISOString()
-    if (body.status && body.status !== 'resolved') patch.resolved_at = null
-    const { data, error } = await supabaseAdmin.from('payment_reconciliation_exceptions').update(patch).eq('id', id).eq('workspace_id', workspace).select('*').single()
+    if (body.status !== undefined) {
+      const status = String(body.status)
+      if (!allowedStatuses.has(status)) return NextResponse.json({ error: 'Invalid exception status.' }, { status: 400 })
+      patch.status = status
+      patch.resolved_at = status === 'resolved' || status === 'ignored' ? new Date().toISOString() : null
+    }
+    if (body.resolution_note !== undefined) {
+      patch.resolution_note = body.resolution_note == null ? null : String(body.resolution_note).trim().slice(0, 2000)
+    }
+    if (!Object.keys(patch).length) return NextResponse.json({ error: 'No supported changes supplied.' }, { status: 400 })
+
+    const { data, error } = await supabaseAdmin
+      .from('payment_reconciliation_exceptions')
+      .update(patch)
+      .eq('id', id)
+      .eq('workspace_id', access.workspaceId)
+      .select('*')
+      .single()
     if (error) throw error
     return NextResponse.json({ success: true, data })
   } catch (error) {
@@ -24,16 +37,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const workspace = await workspaceId()
-    if (!workspace) return NextResponse.json({ error: 'Payment workspace not configured.' }, { status: 401 })
-    const { id } = await params
-    const { error } = await supabaseAdmin.from('payment_reconciliation_exceptions').delete().eq('id', id).eq('workspace_id', workspace)
-    if (error) throw error
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[reconciliation/exceptions/:id] DELETE error:', error)
-    return NextResponse.json({ error: 'Unable to delete reconciliation exception.' }, { status: 500 })
-  }
+export async function DELETE() {
+  return NextResponse.json(
+    { error: 'Reconciliation exceptions are retained for audit. Mark the exception as ignored instead.' },
+    { status: 405, headers: { Allow: 'PATCH' } },
+  )
 }

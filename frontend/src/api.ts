@@ -15,14 +15,24 @@ export type SmsDelivery = { id: string; transaction_id?: string | null; event_ty
 export type SmsTemplate = { id: string; name: string; event_type: string; sender_id: string; message: string; status: string; created_at: string; updated_at?: string | null }
 export type PaymentNotification = { id: string; channel: string; event_type: string; recipient?: string | null; status: string; provider_uid?: string | null; error_message?: string | null; created_at: string; sent_at?: string | null }
 
+import { supabaseClient } from './supabase-client'
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 const apiPath = (path: string) => `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const { data: sessionData } = supabaseClient
+    ? await supabaseClient.auth.getSession()
+    : { data: { session: null } }
+  const accessToken = sessionData.session?.access_token
   const response = await fetch(apiPath(path), {
     credentials: 'include',
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(init?.headers || {}),
+    },
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload?.error || `Request failed (${response.status})`)
