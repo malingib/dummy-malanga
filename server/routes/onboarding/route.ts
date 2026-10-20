@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     if (!/^\d{5,7}$/.test(shortcode)) return NextResponse.json({ error: 'Enter a valid 5–7 digit M-Pesa business shortcode.' }, { status: 400 });
     if (!allowedFormats.has(accountFormat)) return NextResponse.json({ error: 'Invalid account reference format.' }, { status: 400 });
     const ownerUserId = await resolveOwner(request);
+    if (!ownerUserId) return NextResponse.json({ error: 'Authentication required to create a workspace.' }, { status: 401 });
     const cookieStore = await cookies();
     const existingId = cookieStore.get('mobiwave_workspace_id')?.value;
     const origin = request.nextUrl.origin;
