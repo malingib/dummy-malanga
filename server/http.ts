@@ -80,7 +80,7 @@ export async function cookies(): Promise<CookieStore> {
   const request = requestStorage.getStore()?.request
   const values = parseCookies(request?.headers.get('cookie') || '')
   if (values.has('mobiwave_workspace_id')) {
-    const match = /^Bearer\\s+(.+)$/i.exec(request?.headers.get('authorization') || '')
+    const match = /^Bearer\s+(.+)$/i.exec(request?.headers.get('authorization') || '')
     if (!match?.[1]) values.delete('mobiwave_workspace_id')
     else {
       try {
