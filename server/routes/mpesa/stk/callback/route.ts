@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 import { queueWebhook } from '@/lib/webhooks'
-import { sendPaymentReceipt } from '@/lib/mobiwave-sms'
+import { queueNotification } from '@/lib/notifications'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,12 @@ export async function POST(request: NextRequest) {
 
     const checkoutId = String(callback.CheckoutRequestID)
     const idempotencyKey = crypto.createHash('sha256').update(`stk:${checkoutId}`).digest('hex')
-    const { data: event } = await supabaseAdmin.from('payment_webhook_events').insert({ event_type: 'stk.callback', idempotency_key: idempotencyKey, payload: body, processed_at: new Date().toISOString() }).select('id').maybeSingle()
+
+    // Resolve workspace before event insert (Ch26 hardening): lookup pending transaction to bind tenant early
+    const { data: preTxn } = await db.from('payment_transactions').select('id,workspace_id,shortcode').eq('transaction_id', checkoutId).maybeSingle()
+    const preWorkspaceId = preTxn?.workspace_id || null
+
+    const { data: event } = await db.from('payment_webhook_events').insert({ event_type: 'stk.callback', idempotency_key: idempotencyKey, workspace_id: preWorkspaceId, payload: body, processed_at: new Date().toISOString() }).select('id,workspace_id').maybeSingle()
     if (!event) return NextResponse.json({ ResultCode: 0, ResultDesc: 'Already processed' })
 
     const resultCode = String(callback.ResultCode ?? '')
@@ -23,23 +28,43 @@ export async function POST(request: NextRequest) {
     const phone = get('PhoneNumber')
     const status = resultCode === '0' ? 'success' : 'failed'
 
-    const { data: transaction } = await supabaseAdmin.from('payment_transactions').update({ status, result_code: resultCode, result_description: String(callback.ResultDesc || ''), mpesa_receipt: receipt ? String(receipt) : null, phone_number: phone ? String(phone) : undefined, amount: amount ? Number(amount) : undefined, raw_payload: body }).eq('transaction_id', checkoutId).select('id,workspace_id,status,amount,reference,transaction_id,mpesa_receipt,phone_number').maybeSingle()
+    // Use string-safe amount parsing (Ch26: amounts as string to avoid float)
+    const parsedAmount = amount != null ? String(amount) : undefined
+    const numericAmount = parsedAmount != null && /^\d+(\.\d{1,2})?$/.test(parsedAmount) ? Number(parsedAmount) : undefined
+
+    const { data: transaction } = await db.from('payment_transactions').update({ status, result_code: resultCode, result_description: String(callback.ResultDesc || ''), mpesa_receipt: receipt ? String(receipt) : null, phone_number: phone ? String(phone) : undefined, amount: numericAmount, raw_payload: body }).eq('transaction_id', checkoutId).select('id,workspace_id,status,amount,reference,transaction_id,mpesa_receipt,phone_number').maybeSingle()
     if (transaction) {
-      await supabaseAdmin.from('payment_webhook_events').update({ workspace_id: transaction.workspace_id }).eq('id', event.id)
+      if (!event.workspace_id) {
+        await db.from('payment_webhook_events').update({ workspace_id: transaction.workspace_id }).eq('id', event.id)
+      }
+      // Ch26 double-entry ledger: create debit buyer / credit merchant on success (idempotent)
+      if (status === 'success') {
+        try {
+          await db.from('payment_ledger').upsert([
+            { workspace_id: transaction.workspace_id, transaction_id: transaction.id, event_type: 'payin', account: 'buyer', entry_type: 'debit', amount: transaction.amount, reference: transaction.reference, idempotency_key: `payin:${checkoutId}:debit` },
+            { workspace_id: transaction.workspace_id, transaction_id: transaction.id, event_type: 'payin', account: 'merchant', entry_type: 'credit', amount: transaction.amount, reference: transaction.reference, idempotency_key: `payin:${checkoutId}:credit` },
+          ] as any, { onConflict: 'workspace_id,idempotency_key,account,entry_type', ignoreDuplicates: true } as any)
+        } catch (ledgerErr) {
+          console.error('[stk-callback] ledger insert failed:', ledgerErr)
+        }
+      }
       await queueWebhook(status === 'success' ? 'payment.success' : 'payment.failed', checkoutId, transaction.workspace_id, { id: transaction.id, transaction_id: transaction.transaction_id, status: transaction.status, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, phone: transaction.phone_number })
 
       if (status === 'success' && transaction.phone_number) {
-        const { data: workspace } = await supabaseAdmin.from('payment_workspaces').select('notification_sms').eq('id', transaction.workspace_id).maybeSingle()
-        if (workspace?.notification_sms) {
-          const { data: template } = await supabaseAdmin.from('payment_sms_templates').select('message,sender_id').eq('workspace_id', transaction.workspace_id).eq('event_type', 'payment.receipt').eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle()
-          const { data: notification } = await supabaseAdmin.from('payment_notification_events').insert({ workspace_id: transaction.workspace_id, transaction_id: transaction.id, channel: 'sms', event_type: 'payment.receipt', recipient: transaction.phone_number, status: 'pending' }).select('id').maybeSingle()
-          try {
-            const result = await sendPaymentReceipt({ recipient: transaction.phone_number, amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, messageTemplate: template?.message, senderId: template?.sender_id })
-            await supabaseAdmin.from('payment_notification_events').update({ status: result.skipped ? 'skipped' : 'sent', provider_uid: result.data?.data?.uid, sent_at: result.sent ? new Date().toISOString() : null }).eq('id', notification?.id || '')
-          } catch (smsError) {
-            await supabaseAdmin.from('payment_notification_events').update({ status: 'failed', error_message: smsError instanceof Error ? smsError.message : 'SMS delivery failed' }).eq('id', notification?.id || '')
-            console.error('[stk-callback] payment receipt SMS failed:', smsError)
-          }
+        // Ch10: queue via notification system — handles settings opt-out, dedup, rate limit, templating, worker retry/DLQ
+        try {
+          await queueNotification({
+            workspaceId: transaction.workspace_id,
+            transactionId: transaction.id,
+            channel: 'sms',
+            eventType: 'payment.receipt',
+            recipient: transaction.phone_number,
+            dedupKey: `receipt:${checkoutId}`,
+            metadata: { amount: transaction.amount, reference: transaction.reference, receipt: transaction.mpesa_receipt, phone: transaction.phone_number },
+            priority: 8,
+          })
+        } catch (notifyErr) {
+          console.error('[stk-callback] queueNotification failed:', notifyErr)
         }
       }
     }

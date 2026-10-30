@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 import { POST as legacyConfirmation } from '@/server/routes/mpesa/confirmation/route'
 import { assertTransactionRouting, attachTransactionRouting, resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
 import { extractC2BIdentifiers, isCallbackBodyTooLarge, validateConfirmationPayload } from '@/lib/mpesa-callback-rules.mjs'
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   const idempotencyKey = `c2b:confirmation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
 
-  const { data: prior } = await supabaseAdmin
+  const { data: prior } = await db
     .from('mpesa_callback_events')
     .select('id,status')
     .eq('idempotency_key', idempotencyKey)
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!connection) {
-    await supabaseAdmin.from('mpesa_callback_events').insert({
+    await db.from('mpesa_callback_events').insert({
       event_type: 'c2b.confirmation',
       idempotency_key: idempotencyKey,
       shortcode,
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     await assertTransactionRouting(transactionId, connection)
   } catch (error) {
     console.error('[c2b/confirmation] routing conflict:', error)
-    await supabaseAdmin.from('mpesa_callback_events').insert({
+    await db.from('mpesa_callback_events').insert({
       connection_id: connection.id,
       workspace_id: connection.workspace_id,
       event_type: 'c2b.confirmation',
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: '01', ResultDesc: 'Payment routing conflict' }, { status: 200 })
   }
 
-  const { data: event, error: eventError } = await supabaseAdmin.from('mpesa_callback_events').insert({
+  const { data: event, error: eventError } = await db.from('mpesa_callback_events').insert({
     connection_id: connection.id,
     workspace_id: connection.workspace_id,
     event_type: 'c2b.confirmation',
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   const processed = response.ok
 
   if (!processed) {
-    await supabaseAdmin.from('mpesa_callback_events').update({
+    await db.from('mpesa_callback_events').update({
       status: 'failed',
       response_payload: responsePayload,
       error_message: 'Legacy confirmation processing failed',
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
   const amount = validation.amount
   const status = result.code === '0' ? 'success' : 'failed'
 
-  const { error: paymentError } = await supabaseAdmin
+  const { error: paymentError } = await db
     .from('payment_transactions')
     .upsert({
       workspace_id: connection.workspace_id,
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
   if (paymentError) {
     console.error('[c2b/confirmation] payment ledger error:', paymentError)
-    await supabaseAdmin.from('mpesa_callback_events').update({
+    await db.from('mpesa_callback_events').update({
       status: 'failed',
       response_payload: responsePayload,
       error_message: 'Payment ledger persistence failed',
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     await attachTransactionRouting(transactionId, connection, event?.id)
   } catch (error) {
     console.error('[c2b/confirmation] transaction routing attachment error:', error)
-    await supabaseAdmin.from('mpesa_callback_events').update({
+    await db.from('mpesa_callback_events').update({
       status: 'failed',
       response_payload: responsePayload,
       error_message: 'Transaction routing attachment failed',
@@ -156,13 +156,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ResultCode: '01', ResultDesc: 'Transaction routing failed' }, { status: 200 })
   }
 
-  await supabaseAdmin.from('mpesa_callback_events').update({
+  await db.from('mpesa_callback_events').update({
     status: 'processed',
     response_payload: responsePayload,
     processed_at: new Date().toISOString(),
   }).eq('id', event?.id || '')
 
-  await supabaseAdmin.from('mpesa_connections').update({
+  await db.from('mpesa_connections').update({
     callback_verified_at: new Date().toISOString(),
     connection_status: 'ready',
     callback_status: 'verified',

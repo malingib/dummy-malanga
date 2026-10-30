@@ -1,3 +1,5 @@
+/* DEPRECATED 2026-10-30 — superseded by styles.css (MobiWave Console tokens).
+   Kept for reference only; no longer imported by main.tsx. Do not add rules here. */
 :root{--ref-bg:#f6f8f9;--ref-surface:#fff;--ref-border:#dfe4e7;--ref-text:#17221f;--ref-muted:#66736f;--ref-accent:#087f5b;--ref-accent-soft:#e9f6f1;--ref-shadow:0 1px 2px rgba(16,24,40,.035)}
 body{background:var(--ref-bg);color:var(--ref-text)}
 .sidebar{width:248px;padding:0 12px;background:#fff;border-right-color:var(--ref-border)}
@@ -9,6 +11,7 @@ body{background:var(--ref-bg);color:var(--ref-text)}
 .primary{height:36px;padding:0 13px;border-radius:7px;background:#17221f;font-size:11px;display:inline-flex;align-items:center;justify-content:center}.primary:hover{opacity:.94}
 .metric-grid{gap:10px;margin-bottom:14px}.metric{border-radius:9px;border-color:var(--ref-border);box-shadow:var(--ref-shadow);padding:15px 16px}.metric>span,.metric>small{font-size:10px}.metric strong{font-size:21px;margin:8px 0 4px;color:#17221f}
 .two-col{gap:12px;margin-bottom:14px}.panel{border-radius:9px;border-color:var(--ref-border);box-shadow:var(--ref-shadow)}.panel-head{min-height:52px;padding:0 16px}.panel-head h2{font-size:12px}.panel-head a,.panel-head span{font-size:9px}
+.lifecycle-panel{margin-bottom:14px}.lifecycle{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:18px 16px 20px}.lifecycle-step{display:flex;align-items:center;gap:9px;position:relative;min-width:0}.lifecycle-node{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:#f2f4f5;color:#34423e;font-size:11px;font-weight:750}.lifecycle-node.pending{background:#fffaeb;color:#b54708}.lifecycle-node.success{background:#ecfdf3;color:#067647}.lifecycle-node.failed{background:#fef3f2;color:#b42318}.lifecycle-step strong,.lifecycle-step small{display:block}.lifecycle-step strong{font-size:10px;color:#17221f}.lifecycle-step small{font-size:8px;color:#66736f;margin-top:3px;line-height:1.25}.lifecycle-connector{height:1px;background:#dfe4e7;flex:1;margin:0 12px 0 2px}.lifecycle-step:last-child .lifecycle-connector{display:none}
 .bars{height:190px;padding:22px 20px 16px;gap:9px}.bar{max-width:30px;border-radius:4px 4px 2px 2px}.bar-col small{font-size:8px}.health-row{padding:12px 16px;font-size:10px}
 .table-wrap{scrollbar-width:thin}table{min-width:720px}th,td{padding:11px 14px;font-size:10px}th{font-size:8px;letter-spacing:.08em}td small{font-size:8px}.clickable:hover td{background:#f8faf9}
 .status{padding:4px 7px;border-radius:999px;font-size:8px;letter-spacing:.01em}.status.success{color:#067647;background:#ecfdf3}.status.pending{color:#b54708;background:#fffaeb}.status.failed{color:#b42318;background:#fef3f2}.status.reversed{color:#475467;background:#f2f4f7}
@@ -20,5 +23,6 @@ body{background:var(--ref-bg);color:var(--ref-text)}
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #84ad9f;outline-offset:2px}
 @media(max-width:1000px){.sidebar{width:224px}.main{margin-left:224px}.content{padding:26px 20px 50px}.environment-banner{margin:0 20px}}
 @media(max-width:760px){.sidebar{width:260px}.main{margin-left:0}.content{padding:20px 14px 42px}.topbar{padding:0 14px;height:56px}.page-head{gap:14px}.page-head h1{font-size:23px}.metric-grid{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.environment-select>span{display:none}.environment-banner{margin:0 14px;flex-wrap:wrap}.panel-head{padding:0 14px}.dev-row{align-items:flex-start;flex-direction:column}.table-actions{max-width:260px}}
+@media(max-width:760px){.lifecycle{grid-template-columns:1fr 1fr;gap:18px 10px}.lifecycle-connector{display:none}}
 @media(max-width:440px){.metric-grid{grid-template-columns:1fr}.page-head .primary{width:100%}.top-actions select{display:none}.content{padding-left:12px;padding-right:12px}.form-actions{flex-wrap:wrap}.form-actions button{flex:1;min-width:100px}.code-output{min-height:230px}.modal-backdrop{padding:8px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

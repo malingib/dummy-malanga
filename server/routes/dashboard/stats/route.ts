@@ -1,56 +1,60 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { Transaction } from '@/lib/types'
+import { cookies } from 'next/headers'
+import { db } from '@/lib/neon'
+
+type StatusAggregate = {
+  status: string
+  count: string
+  amount: string
+}
 
 export async function GET() {
+  const workspaceId = (await cookies()).get('mobiwave_workspace_id')?.value
+  if (!workspaceId) {
+    return NextResponse.json({
+      totalTransactions: 0,
+      totalAmount: 0,
+      successfulPayments: 0,
+      failedPayments: 0,
+      activeMembers: 0,
+      openCases: 0,
+    })
+  }
+
   try {
-    // Get transaction stats
-    const { data: txData, error: txError } = await supabase
-      .from('transactions')
-      .select('status, trans_amount')
+    const rows = await db.query<StatusAggregate>(
+      `select status, count(*)::bigint as count, coalesce(sum(amount), 0)::text as amount
+       from public.payment_transactions
+       where workspace_id = $1
+       group by status`,
+      [workspaceId],
+    )
 
-    if (txError) throw txError
-
+    let totalTransactions = 0
     let totalAmount = 0
     let successfulPayments = 0
     let failedPayments = 0
 
-    if (txData) {
-      txData.forEach((tx: Pick<Transaction, 'status' | 'trans_amount'>) => {
-        const amount = parseFloat(tx.trans_amount || '0')
-        totalAmount += amount
-        if (tx.status === 'completed') successfulPayments++
-        else if (tx.status === 'failed') failedPayments++
-      })
+    for (const row of rows) {
+      const count = Number(row.count || 0)
+      totalTransactions += count
+      if (row.status === 'success') {
+        successfulPayments += count
+        totalAmount += Number(row.amount || 0)
+      }
+      if (row.status === 'failed') failedPayments += count
     }
 
-    // Get members count
-    const { count: membersCount, error: membersError } = await supabase
-      .from('members')
-      .select('*', { count: 'exact' })
-
-    if (membersError) throw membersError
-
-    // Get open cases count
-    const { count: casesCount, error: casesError } = await supabase
-      .from('cases')
-      .select('*', { count: 'exact' })
-      .neq('status', 'closed')
-
-    if (casesError) throw casesError
-
-    const stats = {
-      totalTransactions: txData?.length || 0,
+    return NextResponse.json({
+      totalTransactions,
       totalAmount: Math.round(totalAmount),
       successfulPayments,
       failedPayments,
-      activeMembers: membersCount || 0,
-      openCases: casesCount || 0,
-    }
-
-    return NextResponse.json(stats)
+      activeMembers: 0,
+      openCases: 0,
+    })
   } catch (error) {
-    console.error('[v0] Error fetching stats:', error)
+    console.error('[dashboard/stats] query failed:', error)
     return NextResponse.json(
       {
         totalTransactions: 0,
@@ -60,7 +64,7 @@ export async function GET() {
         activeMembers: 0,
         openCases: 0,
       },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

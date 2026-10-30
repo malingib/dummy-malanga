@@ -1,3 +1,5 @@
+> **Historical document.** This file predates the standalone Node/Vite + Neon PostgreSQL architecture. The Supabase setup instructions below are obsolete. Use [README.md](./README.md), [DEPLOYMENT.md](./DEPLOYMENT.md), [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) and [docs/PLATFORM-ADMIN.md](./docs/PLATFORM-ADMIN.md) instead.
+
 # M-Pesa Payment System - Setup Guide
 
 Complete step-by-step instructions for deploying and configuring the M-Pesa payment management system.

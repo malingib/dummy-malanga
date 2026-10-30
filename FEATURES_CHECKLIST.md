@@ -272,7 +272,7 @@
 - [x] Webhook URL for confirmation
 - [x] Copy webhook URLs
 - [x] M-Pesa API status
-- [x] Supabase status
+- [x] Neon database status
 - [x] System health indicators
 
 ### Admin Tools
@@ -320,7 +320,7 @@
 ## ✅ UTILITIES & HELPERS
 
 ### Created Files
-- [x] lib/supabase.ts - Supabase client
+- [x] lib/neon.ts - PostgreSQL query layer
 - [x] lib/db.ts - Database queries (40+ functions)
 - [x] lib/types.ts - TypeScript interfaces
 - [x] lib/mpesa.ts - M-Pesa utilities

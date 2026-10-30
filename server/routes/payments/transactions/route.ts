@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 
 async function workspaceId() {
   return (await cookies()).get('mobiwave_workspace_id')?.value || null
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 50, 1), 100)
     const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0)
 
-    let query = supabaseAdmin.from('payment_transactions').select('*', { count: 'exact' }).eq('workspace_id', id).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
+    let query = db.from('payment_transactions').select('*', { count: 'exact' }).eq('workspace_id', id).order('created_at', { ascending: false }).range(offset, offset + limit - 1)
     if (status && ['pending', 'success', 'failed', 'reversed'].includes(status)) query = query.eq('status', status)
     if (reconciliation && ['unreconciled', 'matched', 'unmatched', 'duplicate', 'manual'].includes(reconciliation)) query = query.eq('reconciliation_status', reconciliation)
     if (from) query = query.gte('created_at', from)

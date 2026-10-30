@@ -26,13 +26,15 @@ export async function getMpesaToken(): Promise<string> {
   } catch (error) { console.error('Failed to get M-Pesa token:', error); throw new Error('Failed to get M-Pesa access token') }
 }
 
-export async function initiateStkPush(shortCode: string, phoneNumber: string, amount: number, accountReference: string, description: string, callbackUrl: string) {
+export async function initiateStkPush(shortCode: string, phoneNumber: string, amount: number | string, accountReference: string, description: string, callbackUrl: string) {
   const passkey = process.env.MPESA_PASSKEY || ''
   if (!passkey) throw new Error('M-Pesa passkey is not configured')
   const token = await getMpesaToken()
   const timestamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
   const password = Buffer.from(`${shortCode}${passkey}${timestamp}`).toString('base64')
-  const response = await axios.post(`${baseUrl()}/mpesa/stkpush/v1/processrequest`, { BusinessShortCode: shortCode, Password: password, Timestamp: timestamp, TransactionType: 'CustomerPayBillOnline', Amount: Math.round(amount), PartyA: formatPhoneNumber(phoneNumber), PartyB: shortCode, PhoneNumber: formatPhoneNumber(phoneNumber), CallBackURL: callbackUrl, AccountReference: accountReference.slice(0, 12), TransactionDesc: description.slice(0, 13) }, { headers: { Authorization: `Bearer ${token}` } })
+  const numericAmount = typeof amount === 'string' ? Number(amount) : amount
+  if (!Number.isFinite(numericAmount) || numericAmount < 1 || numericAmount > 150000) throw new Error('Amount must be between KES 1 and KES 150,000')
+  const response = await axios.post(`${baseUrl()}/mpesa/stkpush/v1/processrequest`, { BusinessShortCode: shortCode, Password: password, Timestamp: timestamp, TransactionType: 'CustomerPayBillOnline', Amount: Math.round(numericAmount), PartyA: formatPhoneNumber(phoneNumber), PartyB: shortCode, PhoneNumber: formatPhoneNumber(phoneNumber), CallBackURL: callbackUrl, AccountReference: accountReference.slice(0, 12), TransactionDesc: description.slice(0, 13) }, { headers: { Authorization: `Bearer ${token}` } })
   return response.data
 }
 
@@ -51,8 +53,19 @@ export function validateCallbackSignature(payload: any, signature: string): bool
 export function generateTransactionReference(): string { return `TXN${Date.now()}${Math.random().toString(36).slice(2, 11)}` }
 export function formatPhoneNumber(phone: string): string { let cleaned = phone.replace(/\D/g, ''); if (cleaned.startsWith('0')) cleaned = '254' + cleaned.slice(1); else if (!cleaned.startsWith('254')) cleaned = '254' + cleaned; return cleaned }
 export function isValidPhoneNumber(phone: string): boolean { return /^254[1-9]\d{8}$/.test(formatPhoneNumber(phone)) }
-export function isValidAmount(amount: number): boolean { return amount >= 1 && amount <= 150000 }
-export function generateIdempotencyKey(phoneNumber: string, amount: number, timestamp: string): string { return crypto.createHash('sha256').update(`${phoneNumber}:${amount}:${timestamp}`).digest('hex') }
+export function isValidAmount(amount: number): boolean { return Number.isFinite(amount) && amount >= 1 && amount <= 150000 }
+// Ch26: amounts as string to avoid double precision — validate string amounts and normalize to numeric
+export function parseAmountString(input: unknown): { ok: true; value: string; numeric: number } | { ok: false; error: string } {
+  const raw = typeof input === 'number' ? String(input) : typeof input === 'string' ? input.trim() : ''
+  if (!raw) return { ok: false, error: 'Amount is required.' }
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) return { ok: false, error: 'Amount must be a number with up to 2 decimal places.' }
+  const numeric = Number(raw)
+  if (!Number.isFinite(numeric) || numeric < 1 || numeric > 150000) return { ok: false, error: 'Amount must be between KES 1 and KES 150,000.' }
+  // Normalize: keep 2-dec max without trailing zeros for storage, but DB numeric(14,2) handles it
+  const normalized = numeric % 1 === 0 ? String(Math.trunc(numeric)) : String(numeric)
+  return { ok: true, value: normalized, numeric }
+}
+export function generateIdempotencyKey(phoneNumber: string, amount: number | string, timestamp: string): string { return crypto.createHash('sha256').update(`${phoneNumber}:${String(amount)}:${timestamp}`).digest('hex') }
 
 export async function simulateC2bTransaction(shortCode: string, commandId: string, amount: string, msisdn: string, billRefNumber: string): Promise<any> {
   const token = await getMpesaToken()

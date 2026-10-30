@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 import { resolveMpesaConnection } from '@/lib/mpesa-connection-resolver'
 import { extractC2BIdentifiers, isCallbackBodyTooLarge } from '@/lib/mpesa-callback-rules.mjs'
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     ? `c2b:validation:${connection?.id || shortcode || 'unknown'}:${transactionId}`
     : `c2b:validation:${connection?.id || shortcode || 'unknown'}:${crypto.randomUUID()}`
 
-  const { data: prior } = await supabaseAdmin
+  const { data: prior } = await db
     .from('mpesa_callback_events')
     .select('id,status,response_payload')
     .eq('idempotency_key', idempotencyKey)
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     ? { ResultCode: '0', ResultDesc: 'Accepted' }
     : { ResultCode: '1', ResultDesc: 'Unknown shortcode' }
 
-  const { error } = await supabaseAdmin.from('mpesa_callback_events').insert({
+  const { error } = await db.from('mpesa_callback_events').insert({
     connection_id: connection?.id || null,
     workspace_id: connection?.workspace_id || null,
     event_type: 'c2b.validation',

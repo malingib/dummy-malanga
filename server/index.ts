@@ -1,6 +1,7 @@
 import http from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { ApiRequest, ApiResponse, withRequestContext, writeResponse } from './http'
+import { checkRateLimit } from '../lib/rate-limiter'
 
 type HandlerModule = Record<string, any>
 type Route = { pattern: string; load: () => Promise<HandlerModule> }
@@ -10,9 +11,18 @@ const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 30_000)
 const HEADER_TIMEOUT_MS = Number(process.env.HEADER_TIMEOUT_MS || 10_000)
 
 const routes: Route[] = [
+  ['admin/session', 'server/routes/admin/session/route.ts'],
+  ['admin/overview', 'server/routes/admin/overview/route.ts'],
+  ['admin/merchants', 'server/routes/admin/merchants/route.ts'],
+  ['admin/merchants/:id', 'server/routes/admin/merchants/[id]/route.ts'],
+  ['admin/transactions', 'server/routes/admin/transactions/route.ts'],
+  ['admin/exceptions', 'server/routes/admin/exceptions/route.ts'],
+  ['admin/activations', 'server/routes/admin/activations/route.ts'],
+  ['admin/audit', 'server/routes/admin/audit/route.ts'],
   ['admin/reconcile', 'server/routes/admin/reconcile/route.ts'],
   ['cases', 'server/routes/cases/route.ts'],
   ['dashboard/stats', 'server/routes/dashboard/stats/route.ts'],
+  ['dashboard/overview', 'server/routes/dashboard/overview/route.ts'],
   ['developer/keys', 'server/routes/developer/keys/route.ts'],
   ['developer/webhooks', 'server/routes/developer/webhooks/route.ts'],
   ['developer/webhooks/deliveries', 'server/routes/developer/webhooks/deliveries/route.ts'],
@@ -48,6 +58,13 @@ const routes: Route[] = [
   ['transactions/:id', 'server/routes/transactions/[id]/route.ts'],
   ['v1/payments/stk', 'server/routes/v1/payments/stk/route.ts'],
   ['v1/payments/:id', 'server/routes/v1/payments/[id]/route.ts'],
+  ['v1/b2c', 'server/routes/v1/b2c/route.ts'],
+  ['mpesa/b2c/callback', 'server/routes/mpesa/b2c/callback/route.ts'],
+  ['notifications/settings', 'server/routes/notifications/settings/route.ts'],
+  ['notifications/templates', 'server/routes/notifications/templates/route.ts'],
+  ['notifications/send', 'server/routes/notifications/send/route.ts'],
+  ['notifications/history', 'server/routes/notifications/history/route.ts'],
+  ['internal/notifications/process', 'server/routes/internal/notifications/process/route.ts'],
 ].map(([pattern, file]) => ({
   pattern: `/${pattern}`,
   load: () => import(pathToFileURL(`${process.cwd()}/${file}`).href),
@@ -140,12 +157,22 @@ const server = http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ status: 'ok', service: 'mobipay-api', framework: 'node-http', timestamp: new Date().toISOString() }))
   }
   if (url.pathname === '/ready' || url.pathname === '/api/ready') {
-    const ready = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const ready = Boolean(process.env.DATABASE_URL)
     res.statusCode = ready ? 200 : 503
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     return res.end(JSON.stringify({ status: ready ? 'ready' : 'not_ready', service: 'mobipay-api' }))
   }
   if (!url.pathname.startsWith('/api/')) return reject(res, 404, 'Not found.')
+
+  // Ch04 rate limiting: sliding window counter per IP+bucket
+  const rl = checkRateLimit(req, url.pathname)
+  res.setHeader('X-RateLimit-Limit', String(rl.limit))
+  res.setHeader('X-RateLimit-Remaining', String(rl.remaining))
+  res.setHeader('X-RateLimit-Reset', String(Math.ceil(rl.resetMs / 1000)))
+  if (!rl.allowed) {
+    res.setHeader('Retry-After', String(rl.retryAfterSec))
+    return reject(res, 429, 'Too many requests. Please retry after ' + rl.retryAfterSec + 's.')
+  }
 
   const pathname = url.pathname.slice('/api'.length).replace(/\/$/, '') || '/'
   const route = routes.find((candidate) => match(candidate.pattern, pathname))

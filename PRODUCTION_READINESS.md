@@ -8,7 +8,7 @@ MobiPay is intentionally split into two deployable surfaces:
 
 - React 19 + Vite static frontend in `frontend/dist`.
 - Standalone Node.js HTTP API on port `4000` by default.
-- Supabase PostgreSQL/Auth for persistence and authentication.
+- Neon PostgreSQL for persistence, with server-side workspace/API-key/admin session authorization.
 - Safaricom Daraja for the M-Pesa integration.
 
 The API is not a Next.js application and must not be deployed as one.
@@ -17,11 +17,11 @@ The API is not a Next.js application and must not be deployed as one.
 
 ### Browser/frontend
 
-The browser may receive only public configuration such as the API origin and Supabase public/anon configuration where required by the application.
+The browser may receive only public configuration such as the API origin. Database credentials and session-signing secrets remain server-side.
 
 Never expose:
 
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
 - M-Pesa consumer secrets/passkeys/initiator credentials
 - webhook encryption keys
 - callback/cron secrets
@@ -52,8 +52,7 @@ See [`docs/PSP-OPERATING-MODEL.md`](./docs/PSP-OPERATING-MODEL.md).
 
 At minimum configure:
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `DATABASE_URL`
 - `PUBLIC_API_ORIGIN`
 - `PUBLIC_API_PROTOCOL=https`
 - `FRONTEND_ORIGIN`
@@ -99,8 +98,8 @@ Browser ────────────────────────
                          Node.js API :4000
                            │            │
                            ▼            ▼
-                       Supabase     Safaricom
-                        DB/Auth       Daraja
+                    Neon PostgreSQL   Safaricom
+                        database        Daraja
                                         │
                                         ▼
                               Licensed PSP boundary
@@ -114,9 +113,10 @@ Every release to `main` must pass:
 
 ```bash
 npm run audit:architecture
-npm run test:mpesa
 npm run lint
+npm run test:mpesa
 npm run build:frontend
+npm run db:migrate   # against a staging database before promoting schema changes
 ```
 
 GitHub Actions runs the same verification sequence on pushes to `main` and pull requests targeting `main`.

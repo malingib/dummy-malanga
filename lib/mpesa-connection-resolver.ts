@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 
 type Environment = 'sandbox' | 'production'
 
@@ -20,7 +20,7 @@ export async function resolveMpesaConnection(shortcode: string, environment?: En
   if (!normalized) return null
 
   const targetEnvironment = environment || runtimeEnvironment()
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('mpesa_connections')
     .select('id,workspace_id,shortcode,account_type,environment,is_active')
     .eq('shortcode', normalized)
@@ -37,7 +37,7 @@ export async function resolveMpesaConnection(shortcode: string, environment?: En
 export async function attachTransactionRouting(transactionId: string, connection: ResolvedMpesaConnection, callbackEventId?: string | null) {
   if (!transactionId) return
 
-  const { error } = await supabaseAdmin
+  const { error } = await db
     .from('payment_transactions')
     .update({
       workspace_id: connection.workspace_id,
@@ -55,7 +55,7 @@ export async function attachTransactionRouting(transactionId: string, connection
 export async function assertTransactionRouting(transactionId: string, connection: ResolvedMpesaConnection) {
   if (!transactionId) return
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('payment_transactions')
     .select('id,workspace_id,connection_id,shortcode')
     .eq('transaction_id', transactionId)

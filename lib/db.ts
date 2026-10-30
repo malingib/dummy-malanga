@@ -1,4 +1,4 @@
-import { supabaseAdmin, supabase } from './supabase'
+import { db } from './neon'
 import { Transaction, Member, Case, ValidationLog } from './types'
 
 // ============================================================
@@ -10,7 +10,7 @@ export async function getTransactions(filters?: {
   offset?: number
   search?: string
 }) {
-  let query = supabase
+  let query = db
     .from('transactions')
     .select('*')
     .order('created_at', { ascending: false })
@@ -39,7 +39,7 @@ export async function getTransactions(filters?: {
 }
 
 export async function getTransaction(id: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('transactions')
     .select('*')
     .eq('id', id)
@@ -50,7 +50,7 @@ export async function getTransaction(id: string) {
 }
 
 export async function getTransactionByTransId(transId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('transactions')
     .select('*')
     .eq('trans_id', transId)
@@ -61,7 +61,7 @@ export async function getTransactionByTransId(transId: string) {
 }
 
 export async function createTransaction(transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('transactions')
     .insert([transaction])
     .select()
@@ -73,7 +73,7 @@ export async function createTransaction(transaction: Omit<Transaction, 'id' | 'c
 export async function upsertTransactionByTransId(
   transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>
 ) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('transactions')
     .upsert([transaction], { onConflict: 'trans_id' })
     .select()
@@ -84,7 +84,7 @@ export async function upsertTransactionByTransId(
 }
 
 export async function updateTransaction(id: string, updates: Partial<Transaction>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('transactions')
     .update(updates)
     .eq('id', id)
@@ -102,7 +102,7 @@ export async function reconcileTransaction(id: string) {
 }
 
 export async function getFailedTransactions(limit?: number) {
-  let query = supabase
+  let query = db
     .from('transactions')
     .select('*')
     .eq('status', 'failed')
@@ -118,7 +118,7 @@ export async function getFailedTransactions(limit?: number) {
 }
 
 export async function getTransactionStats() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('transactions')
     .select('status, trans_amount', { count: 'exact' })
 
@@ -144,7 +144,7 @@ export async function getTransactionStats() {
 }
 
 export async function getDuplicateTransactionCount() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('transactions')
     .select('trans_id')
 
@@ -167,7 +167,7 @@ export async function getDuplicateTransactionCount() {
 // MEMBERS
 // ============================================================
 export async function getMembers(search?: string, limit?: number) {
-  let query = supabase
+  let query = db
     .from('members')
     .select('*')
     .order('created_at', { ascending: false })
@@ -188,7 +188,7 @@ export async function getMembers(search?: string, limit?: number) {
 }
 
 export async function getMember(id: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('members')
     .select('*')
     .eq('id', id)
@@ -199,7 +199,7 @@ export async function getMember(id: string) {
 }
 
 export async function getMemberByNumber(memberNumber: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('members')
     .select('*')
     .eq('member_number', memberNumber)
@@ -210,7 +210,7 @@ export async function getMemberByNumber(memberNumber: string) {
 }
 
 export async function getMemberByPhone(phoneNumber: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('members')
     .select('*')
     .eq('phone_number', phoneNumber)
@@ -221,7 +221,7 @@ export async function getMemberByPhone(phoneNumber: string) {
 }
 
 export async function createMember(member: Omit<Member, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('members')
     .insert([member])
     .select()
@@ -231,7 +231,7 @@ export async function createMember(member: Omit<Member, 'id' | 'created_at' | 'u
 }
 
 export async function createMembers(members: Omit<Member, 'id' | 'created_at' | 'updated_at'>[]) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('members')
     .insert(members)
     .select()
@@ -245,7 +245,7 @@ export async function getMembersByIdentifiers(memberNumbers: string[], phoneNumb
   const existingPhoneNumbers = new Set<string>()
 
   if (memberNumbers.length > 0) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('members')
       .select('member_number')
       .in('member_number', memberNumbers)
@@ -258,7 +258,7 @@ export async function getMembersByIdentifiers(memberNumbers: string[], phoneNumb
   }
 
   if (phoneNumbers.length > 0) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('members')
       .select('phone_number')
       .in('phone_number', phoneNumbers)
@@ -274,7 +274,7 @@ export async function getMembersByIdentifiers(memberNumbers: string[], phoneNumb
 }
 
 export async function updateMember(id: string, updates: Partial<Member>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('members')
     .update(updates)
     .eq('id', id)
@@ -285,7 +285,7 @@ export async function updateMember(id: string, updates: Partial<Member>) {
 }
 
 export async function getMembersCount() {
-  const { count, error } = await supabase
+  const { count, error } = await db
     .from('members')
     .select('*', { count: 'exact' })
 
@@ -297,7 +297,7 @@ export async function getMembersCount() {
 // CASES
 // ============================================================
 export async function getCases(search?: string, status?: string) {
-  let query = supabase
+  let query = db
     .from('cases')
     .select('*')
     .order('created_at', { ascending: false })
@@ -316,7 +316,7 @@ export async function getCases(search?: string, status?: string) {
 }
 
 export async function getCase(id: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('cases')
     .select('*')
     .eq('id', id)
@@ -327,7 +327,7 @@ export async function getCase(id: string) {
 }
 
 export async function getCaseByNumber(caseNumber: string) {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('cases')
     .select('*')
     .eq('case_number', caseNumber)
@@ -338,7 +338,7 @@ export async function getCaseByNumber(caseNumber: string) {
 }
 
 export async function createCase(caseData: Omit<Case, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('cases')
     .insert([caseData])
     .select()
@@ -348,7 +348,7 @@ export async function createCase(caseData: Omit<Case, 'id' | 'created_at' | 'upd
 }
 
 export async function updateCase(id: string, updates: Partial<Case>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('cases')
     .update(updates)
     .eq('id', id)
@@ -359,7 +359,7 @@ export async function updateCase(id: string, updates: Partial<Case>) {
 }
 
 export async function getCasesCount() {
-  const { count, error } = await supabase
+  const { count, error } = await db
     .from('cases')
     .select('*', { count: 'exact' })
 
@@ -368,7 +368,7 @@ export async function getCasesCount() {
 }
 
 export async function getActiveCases() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('cases')
     .select('*')
     .neq('status', 'closed')
@@ -382,7 +382,7 @@ export async function getActiveCases() {
 // LOGS
 // ============================================================
 export async function createValidationLog(log: Omit<ValidationLog, 'id' | 'created_at'>) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('validation_logs')
     .insert([log])
     .select()
@@ -397,7 +397,7 @@ export async function createCallbackLog(log: {
   response_code: string
   response_description: string
 }) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await db
     .from('callback_logs')
     .insert([log])
     .select()

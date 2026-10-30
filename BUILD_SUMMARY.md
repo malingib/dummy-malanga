@@ -6,10 +6,11 @@ MobiPay is now organized as two independent runtime surfaces:
 
 - **Frontend:** React 19, Vite, React Router, TanStack Query, and Zustand.
 - **API:** standalone Node.js HTTP server, normally on port `4000`.
-- **Database/auth:** Supabase PostgreSQL and Supabase Auth.
+- **Database:** Neon PostgreSQL through the `pg` driver.
+- **Auth:** workspace cookies, hashed developer API keys, and a separate platform-admin session.
 - **Payments:** Safaricom Daraja integration through the existing M-Pesa service layer.
 
-The repository no longer uses the Next.js runtime. The compatibility layer in `server/http.ts` exists only to support migrated route-handler patterns while requests are served by the standalone Node server.
+The repository no longer uses the Next.js or Supabase runtimes. The compatibility layer in `server/http.ts` exists only to support migrated route-handler patterns while requests are served by the standalone Node server.
 
 ## Verification commands
 
@@ -42,7 +43,7 @@ npm run verify
 
 Server-only secrets must remain outside the Vite frontend, including:
 
-- Supabase service-role credentials
+- `DATABASE_URL` and platform-admin session secrets
 - M-Pesa credentials and passkeys
 - Webhook encryption keys
 - SMS provider tokens
@@ -52,7 +53,7 @@ Use `.env.local.example` as the configuration template. Production deployment gu
 
 ## Production status
 
-The repository contains the migrated application architecture, security audit, M-Pesa callback tests, and CI verification workflow. Production readiness still requires environment configuration, Supabase migration verification, live Daraja sandbox testing, callback registration, monitoring, and deployment smoke tests.
+The repository contains the migrated application architecture, security audit, M-Pesa callback tests, and CI verification workflow. Production readiness still requires environment configuration, a verified Neon migration run, live Daraja sandbox testing, callback registration, monitoring, and deployment smoke tests.
 
 ## Important distinction
 

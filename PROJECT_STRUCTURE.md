@@ -37,18 +37,19 @@ mobiPay/
 ├── lib/
 │   ├── api-auth.ts
 │   ├── db.ts
+│   ├── platform-admin.ts
 │   ├── mpesa.ts
 │   ├── mpesa-connection-service.ts
 │   ├── mpesa-connection-resolver.ts
 │   ├── mpesa-credentials.ts
 │   ├── mobiwave-sms.ts
-│   ├── supabase.ts
+│   ├── neon.ts
 │   ├── types.ts
 │   ├── utils.ts
 │   ├── validation.ts
 │   └── webhooks.ts
-├── supabase/
-│   └── migrations/               # Existing database migrations
+├── db/
+│   └── migrations/               # PostgreSQL migrations and Neon bootstrap
 ├── scripts/
 ├── tests/
 ├── .github/workflows/ci.yml
@@ -69,7 +70,7 @@ Node HTTP API :4000
   │
   ├── server/routes/*
   ├── lib/*
-  ├── Supabase
+  ├── Neon PostgreSQL
   └── Safaricom Daraja
 ```
 
@@ -85,7 +86,7 @@ The public API contract remains under `/api/*`, including M-Pesa callbacks, STK 
 
 ## Database
 
-Supabase migrations remain under `supabase/migrations`. The framework migration does not modify the existing database schema.
+PostgreSQL migrations live in `db/migrations`. Apply them with `npm run db:migrate`; the runner records each file in `public.schema_migrations`. The API connects directly with `DATABASE_URL` and does not use Supabase PostgREST or Supabase Auth.
 
 ## Verification
 

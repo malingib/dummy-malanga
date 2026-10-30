@@ -7,9 +7,9 @@ Use this checklist to ensure your M-Pesa payment system is properly configured b
 ### Database & Environment
 - [ ] `.env.local` file created with all required variables
 - [ ] `.env.local` is in `.gitignore` (not committed to Git)
-- [ ] Supabase project created and accessible
+- [ ] Neon project created and accessible
 - [ ] Database schema initialized (scripts/init-db.sql executed)
-- [ ] All database tables visible in Supabase dashboard
+- [ ] All migrations applied and tables visible in the Neon console
 
 ### M-Pesa Configuration
 - [ ] M-Pesa consumer key and secret obtained from Safaricom
@@ -64,9 +64,9 @@ Use this checklist to ensure your M-Pesa payment system is properly configured b
 Set these in Vercel dashboard under Settings → Environment Variables:
 
 ### Required for Deployment
-- [ ] `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Public anon key from Supabase
-- [ ] `SUPABASE_SERVICE_KEY` - Service role key (marked as sensitive)
+- [ ] `DATABASE_URL` - Neon PostgreSQL connection string
+- [ ] `DATABASE_REQUEST_TIMEOUT_MS` - Optional database timeout
+- [ ] `DATABASE_POOL_MAX` - Optional pool size
 - [ ] `MPESA_CONSUMER_KEY` - M-Pesa consumer key (marked as sensitive)
 - [ ] `MPESA_CONSUMER_SECRET` - M-Pesa consumer secret (marked as sensitive)
 - [ ] `MPESA_BUSINESS_SHORTCODE` - Your business shortcode
@@ -77,7 +77,7 @@ Set these in Vercel dashboard under Settings → Environment Variables:
 - [ ] `NEXT_PUBLIC_APP_URL` - Your production domain
 
 ### Mark as Sensitive
-- [ ] `SUPABASE_SERVICE_KEY`
+- [ ] `DATABASE_URL`
 - [ ] `MPESA_CONSUMER_KEY`
 - [ ] `MPESA_CONSUMER_SECRET`
 - [ ] `MPESA_PASSKEY`
@@ -126,20 +126,20 @@ Set these in Vercel dashboard under Settings → Environment Variables:
 - [ ] Transaction appears in dashboard
 
 ### Database Health
-- [ ] Can connect to Supabase from production
+- [ ] Can connect to Neon from production
 - [ ] Database queries execute < 100ms
 - [ ] Data persists correctly
 - [ ] No connection pool issues
-- [ ] Backups configured in Supabase
+- [ ] Backups configured in Neon
 
 ## Security Hardening
 
-### Supabase Configuration
+### Neon Configuration
 - [ ] Row Level Security (RLS) enabled on all tables
 - [ ] RLS policies configured and tested
 - [ ] Service key restricted to backend operations
 - [ ] Anon key has minimal permissions
-- [ ] Database backups automated (Supabase Pro+)
+- [ ] Database backups automated on the selected Neon plan
 
 ### Application Security
 - [ ] No sensitive data logged to console
@@ -163,10 +163,10 @@ Set these in Vercel dashboard under Settings → Environment Variables:
   - [ ] members.phone
 - [ ] Query performance analyzed
 - [ ] No N+1 queries detected
-- [ ] Connection pooling configured (Supabase PgBouncer)
+- [ ] Connection pooling configured with the Neon pooled connection string
 
 ### Caching Strategy
-- [ ] Supabase caching headers configured
+- [ ] API/CDN caching headers configured
 - [ ] Next.js ISR (Incremental Static Regeneration) setup for static pages
 - [ ] Consider Vercel KV for session/rate limit data
 
@@ -179,7 +179,7 @@ Set these in Vercel dashboard under Settings → Environment Variables:
 ## Backup & Disaster Recovery
 
 ### Database Backups
-- [ ] Supabase automatic backups enabled
+- [ ] Neon automatic backups enabled
 - [ ] Backup retention policy set
 - [ ] Test restore procedure
 - [ ] Backup location verified (off-site)
@@ -201,7 +201,7 @@ Set these in Vercel dashboard under Settings → Environment Variables:
 
 ### Monitoring Access
 - [ ] Team members have Vercel access
-- [ ] Team members have Supabase access
+- [ ] Team members have Neon project access
 - [ ] GitHub access configured
 - [ ] Incident response procedures documented
 - [ ] Contact information for support
@@ -252,7 +252,7 @@ If issues arise post-deployment:
 
 1. **Identify Issue**
    - Check Vercel logs
-   - Check Supabase logs
+   - Check Neon logs
    - Review recent changes
 
 2. **Rollback Steps**

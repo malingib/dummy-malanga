@@ -52,7 +52,7 @@ export function MpesaActivationJourney() {
         {connection && current === 'callbacks' && <button className="primary" onClick={() => action.mutate({action:'register_callbacks'})} disabled={action.isPending}>{action.isPending ? 'Configuring…' : 'Configure notifications'}</button>}
         {connection && current === 'test' && <button className="primary" onClick={() => setShowTest(true)}>Run payment test</button>}
         {connection && current === 'ready' && <Link className="primary" to="/payments">Request payment</Link>}
-        {connection && <Link to="/mpesa/connections">Manage connections</Link>}
+        {connection && <Link className="btn-secondary" to="/mpesa/connections">Manage connections</Link>}
       </div>
     </section>
 

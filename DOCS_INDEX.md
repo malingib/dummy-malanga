@@ -1,3 +1,5 @@
+> **Historical document.** This file predates the standalone Node/Vite + Neon PostgreSQL architecture. The Supabase setup instructions below are obsolete. Use [README.md](./README.md), [DEPLOYMENT.md](./DEPLOYMENT.md), [PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md) and [docs/PLATFORM-ADMIN.md](./docs/PLATFORM-ADMIN.md) instead.
+
 # Documentation Index
 
 Complete guide to all documentation files in the M-Pesa Payment System project.
@@ -213,7 +215,7 @@ Complete guide to all documentation files in the M-Pesa Payment System project.
 **Solution:** Check [API_REFERENCE.md](./API_REFERENCE.md) for correct endpoint path
 
 ### Problem: Dashboard not loading data
-**Solution:** Check Supabase logs and environment variables in [SETUP.md#2-supabase-configuration](./SETUP.md#2-supabase-configuration)
+**Solution:** Check Neon Postgres logs and the `DATABASE_URL` server environment. See [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
@@ -276,7 +278,7 @@ Complete guide to all documentation files in the M-Pesa Payment System project.
 1. Check [GETTING_STARTED.md#troubleshooting](./GETTING_STARTED.md#troubleshooting)
 2. Review [SETUP.md#7-monitoring--troubleshooting](./SETUP.md#7-monitoring--troubleshooting)
 3. Check [API_REFERENCE.md](./API_REFERENCE.md) for endpoint details
-4. Review error logs in Vercel/Supabase dashboards
+4. Review error logs in the frontend host and Neon console
 
 ### Need to Know Something Specific?
 - **"How do I..."** → [GETTING_STARTED.md](./GETTING_STARTED.md#common-tasks)

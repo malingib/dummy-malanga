@@ -1,3 +1,6 @@
+HISTORICAL DOCUMENT
+This report predates the standalone Node/Vite + Neon architecture. Supabase references below are obsolete. Use README.md and DEPLOYMENT.md instead.
+
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║                                                                            ║
 ║             M-PESA DASHBOARD IMPLEMENTATION - COMPLETION REPORT            ║

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 import { createOrUpdateMpesaConnection, registerMpesaCallbacks, obtainMpesaToken, simulateMpesaConnection } from '@/lib/mpesa-connection-service'
 
 async function workspaceId() { return (await cookies()).get('mobiwave_workspace_id')?.value || null }
@@ -10,7 +10,7 @@ const managedMpesaEnabled = () => process.env.MOBIWAVE_MANAGED_MPESA_ENABLED ===
 
 export async function GET() {
   const workspace = await workspaceId(); if (!workspace) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 })
-  const { data, error } = await supabaseAdmin.from('mpesa_connections').select('*').eq('workspace_id', workspace).order('is_primary', { ascending: false }).order('created_at', { ascending: true })
+  const { data, error } = await db.from('mpesa_connections').select('*').eq('workspace_id', workspace).order('is_primary', { ascending: false }).order('created_at', { ascending: true })
   if (error) return NextResponse.json({ error: 'Unable to load M-Pesa connections.' }, { status: 500 })
   return NextResponse.json({ success: true, data: (data || []).map(publicConnection) })
 }
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
   const workspace = await workspaceId(); if (!workspace) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 })
   const body = await request.json().catch(() => ({})); const connectionId = String(body?.id || '')
   if (!connectionId) return NextResponse.json({ error: 'Connection id is required.' }, { status: 400 })
-  const { data: connection } = await supabaseAdmin.from('mpesa_connections').select('*').eq('id', connectionId).eq('workspace_id', workspace).maybeSingle()
+  const { data: connection } = await db.from('mpesa_connections').select('*').eq('id', connectionId).eq('workspace_id', workspace).maybeSingle()
   if (!connection) return NextResponse.json({ error: 'M-Pesa connection not found.' }, { status: 404 })
   if (connection.credential_source === 'mobiwave' && !managedMpesaEnabled()) {
     return NextResponse.json({ error: 'MobiWave-managed M-Pesa credentials are not enabled for this account.' }, { status: 403 })
@@ -46,9 +46,9 @@ export async function PATCH(request: NextRequest) {
       const amount = Number(body?.amount || 10); const phone = String(body?.phone || '')
       if (!/^\+?254\d{9}$/.test(phone.replace(/\s/g, '').replace(/^0/, '254')) && !/^0\d{9}$/.test(phone.replace(/\s/g, ''))) return NextResponse.json({ error: 'Enter a valid Kenyan test phone number.' }, { status: 400 })
       await simulateMpesaConnection(connectionId, amount, phone, String(body?.reference || 'MOBIWAVE-TEST'))
-    } else if (body?.action === 'deactivate') await supabaseAdmin.from('mpesa_connections').update({ is_active: false, connection_status: 'suspended' }).eq('id', connectionId).eq('workspace_id', workspace)
+    } else if (body?.action === 'deactivate') await db.from('mpesa_connections').update({ is_active: false, connection_status: 'suspended' }).eq('id', connectionId).eq('workspace_id', workspace)
     else return NextResponse.json({ error: 'Unsupported connection action.' }, { status: 400 })
-    const { data: updated } = await supabaseAdmin.from('mpesa_connections').select('*').eq('id', connectionId).single()
+    const { data: updated } = await db.from('mpesa_connections').select('*').eq('id', connectionId).single()
     return NextResponse.json({ success: true, data: updated ? publicConnection(updated) : null })
   } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'M-Pesa connection operation failed.' }, { status: 502 }) }
 }

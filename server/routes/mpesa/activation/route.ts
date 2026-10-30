@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 import { getMpesaConnection, obtainMpesaToken, registerMpesaCallbacks, simulateMpesaConnection } from '@/lib/mpesa-connection-service'
 
 async function workspaceId() {
@@ -17,17 +17,17 @@ function journeyStatus(connection: Record<string, unknown> | null) {
 }
 
 async function syncActivation(workspace: string) {
-  const { data: connections } = await supabaseAdmin
+  const { data: connections } = await db
     .from('mpesa_connections')
     .select('id,shortcode,account_type,environment,connection_status,token_status,callback_status,is_primary,is_active,last_tested_at,last_error')
     .eq('workspace_id', workspace)
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
 
-  const primary = connections?.find((item) => item.is_primary) || connections?.[0] || null
+  const primary = connections?.find((item: any) => item.is_primary) || connections?.[0] || null
   const status = primary ? journeyStatus(primary) : 'connection_required'
 
-  const { data: activation } = await supabaseAdmin
+  const { data: activation } = await db
     .from('mpesa_activation_requests')
     .select('*')
     .eq('workspace_id', workspace)
@@ -42,7 +42,7 @@ async function syncActivation(workspace: string) {
       : status === 'callback_setup' ? 'credentials_required'
       : activation.status === 'live' ? 'live' : 'reviewing'
     if (activation.status !== 'live' && activation.status !== 'cancelled' && activation.status !== mapped) {
-      await supabaseAdmin.from('mpesa_activation_requests').update({ status: mapped, last_error: primary?.last_error || null }).eq('id', activation.id)
+      await db.from('mpesa_activation_requests').update({ status: mapped, last_error: primary?.last_error || null }).eq('id', activation.id)
     }
   }
 
@@ -60,20 +60,20 @@ export async function POST(request: NextRequest) {
   const workspace = await workspaceId()
   if (!workspace) return NextResponse.json({ error: 'Complete onboarding first.' }, { status: 400 })
   const body = await request.json().catch(() => ({}))
-  const { data: ws } = await supabaseAdmin.from('payment_workspaces').select('environment,payment_methods').eq('id', workspace).maybeSingle()
+  const { data: ws } = await db.from('payment_workspaces').select('environment,payment_methods').eq('id', workspace).maybeSingle()
   if (!ws) return NextResponse.json({ error: 'Workspace not found.' }, { status: 404 })
 
-  const { data: existing } = await supabaseAdmin.from('mpesa_activation_requests').select('id,status').eq('workspace_id', workspace).not('status', 'in', '(live,cancelled)').maybeSingle()
+  const { data: existing } = await db.from('mpesa_activation_requests').select('id,status').eq('workspace_id', workspace).not('status', 'in', '(live,cancelled)').maybeSingle()
   if (existing) return NextResponse.json({ success: true, data: existing })
 
-  const { data, error } = await supabaseAdmin.from('mpesa_activation_requests').insert({
+  const { data, error } = await db.from('mpesa_activation_requests').insert({
     workspace_id: workspace,
     environment: ws.environment || 'sandbox',
     requested_methods: ws.payment_methods || [],
     notes: String(body?.notes || '').slice(0, 1000) || null,
   }).select('*').single()
   if (error) return NextResponse.json({ error: 'Unable to create activation request.' }, { status: 500 })
-  await supabaseAdmin.from('payment_workspaces').update({ status: 'ready_for_credentials' }).eq('id', workspace)
+  await db.from('payment_workspaces').update({ status: 'ready_for_credentials' }).eq('id', workspace)
   return NextResponse.json({ success: true, data }, { status: 201 })
 }
 
@@ -84,7 +84,7 @@ export async function PATCH(request: NextRequest) {
   const connectionId = String(body?.connection_id || '')
   if (!connectionId) return NextResponse.json({ error: 'Connection id is required.' }, { status: 400 })
 
-  const { data: connection } = await supabaseAdmin.from('mpesa_connections').select('id,workspace_id,shortcode,environment').eq('id', connectionId).eq('workspace_id', workspace).maybeSingle()
+  const { data: connection } = await db.from('mpesa_connections').select('id,workspace_id,shortcode,environment').eq('id', connectionId).eq('workspace_id', workspace).maybeSingle()
   if (!connection) return NextResponse.json({ error: 'M-Pesa connection not found.' }, { status: 404 })
 
   try {
@@ -105,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, data: state })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'M-Pesa activation failed.'
-    await supabaseAdmin.from('mpesa_activation_requests').update({ status: 'blocked', last_error: message }).eq('workspace_id', workspace).not('status', 'in', '(live,cancelled)')
+    await db.from('mpesa_activation_requests').update({ status: 'blocked', last_error: message }).eq('workspace_id', workspace).not('status', 'in', '(live,cancelled)')
     return NextResponse.json({ error: message }, { status: 502 })
   }
 }

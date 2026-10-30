@@ -4,8 +4,14 @@ import {
   getFailedTransactions,
   reconcileTransaction,
 } from '@/lib/db'
+import { requirePlatformAdmin, requirePlatformAdminDatabase } from '@/lib/platform-admin'
 
 export async function POST() {
+  const denied = await requirePlatformAdmin()
+  if (denied) return denied
+  const unavailable = requirePlatformAdminDatabase()
+  if (unavailable) return unavailable
+
   try {
     const failedTransactions = await getFailedTransactions()
     const duplicates = await getDuplicateTransactionCount()
@@ -27,7 +33,6 @@ export async function POST() {
       matched++
 
       try {
-        matched++
         await reconcileTransaction(tx.id)
         reconciled++
       } catch {

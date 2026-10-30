@@ -2,14 +2,16 @@ import { create } from 'zustand'
 
 type Store = {
   sidebarOpen: boolean
-  environment: 'sandbox' | 'production'
+  sidebarCollapsed: boolean
   toggleSidebar: () => void
-  setEnvironment: (environment: Store['environment']) => void
+  toggleCollapsed: () => void
+  closeSidebar: () => void
 }
 
 export const useUiStore = create<Store>((set) => ({
   sidebarOpen: false,
-  environment: 'sandbox',
+  sidebarCollapsed: false,
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-  setEnvironment: (environment) => set({ environment }),
+  toggleCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  closeSidebar: () => set({ sidebarOpen: false }),
 }))

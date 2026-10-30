@@ -2,12 +2,12 @@
 
 ## Credential rotation
 
-Historical repository files contained production-style Safaricom and Supabase credentials. Those legacy files have been removed from `main`, but removing a secret from Git does not revoke it.
+Historical repository files contained production-style Safaricom and Supabase-era credentials. Those legacy files have been removed from `main`, but removing a secret from Git does not revoke it.
 
 Before production use, rotate any credential that was ever committed, especially:
 
 - Safaricom Daraja consumer key/secret
-- Supabase service-role key
+- Neon database password/connection string (and any legacy Supabase service-role key that was ever committed)
 - M-Pesa passkey/initiator credentials
 - SMS API token
 - webhook encryption key

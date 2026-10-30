@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 
 export async function GET() {
   try {
@@ -8,12 +8,12 @@ export async function GET() {
     if (!workspaceId) return NextResponse.json({ error: 'Payment workspace not configured.' }, { status: 401 })
 
     const [{ data: connections, error: connectionError }, { data: health, error: healthError }] = await Promise.all([
-      supabaseAdmin
+      db
         .from('mpesa_callback_health')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('shortcode'),
-      supabaseAdmin
+      db
         .from('mpesa_workspace_callback_health')
         .select('*')
         .eq('workspace_id', workspaceId)

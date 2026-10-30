@@ -525,7 +525,7 @@ Target response times:
 
 Monitor API usage:
 1. Vercel dashboard → Logs
-2. Supabase dashboard → Database logs
+2. Neon console → Monitoring / Postgres logs
 3. Browser console (DevTools) for client-side errors
 
 ---

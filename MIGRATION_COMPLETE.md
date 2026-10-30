@@ -6,14 +6,14 @@ MobiPay is now a framework-independent payment operations platform with:
 
 - React 19 + Vite frontend in `frontend/`;
 - standalone Node.js HTTP API in `server/`;
-- Supabase PostgreSQL/Auth integration;
+- Neon PostgreSQL integration over the standard `pg` driver;
 - Safaricom Daraja M-Pesa integration;
 - payment transactions and reconciliation;
 - STK Push and M-Pesa callback processing;
 - developer API keys and webhooks;
 - SMS operations and merchant configuration.
 
-The old Next.js runtime is no longer part of the deployment model. `server/http.ts` is a small compatibility layer used by migrated route handlers; the application itself runs on Node's native HTTP server.
+The old Next.js and Supabase runtimes are no longer part of the deployment model. `server/http.ts` is a small compatibility layer used by migrated route handlers; the application itself runs on Node's native HTTP server.
 
 ## Completed stabilization work
 
@@ -62,7 +62,7 @@ The default API port is `4000`.
 
 ### Database and authentication
 
-Supabase remains the database/authentication layer. Server-side privileged access stays inside the API runtime.
+Neon PostgreSQL is the database. Server-side privileged access stays inside the API runtime; merchants use signed workspace cookies and hashed API keys, while platform administrators use a separate signed session.
 
 ### M-Pesa
 
@@ -72,7 +72,7 @@ Daraja credentials and callback configuration remain server-side. Existing callb
 
 The codebase has a verified build baseline, but production activation still requires environment-specific configuration and operational checks:
 
-1. Configure production Supabase credentials.
+1. Configure the production Neon `DATABASE_URL` and run `npm run db:migrate`.
 2. Configure the applicable Daraja production credentials and callback URLs.
 3. Configure explicit frontend/API origins and HTTPS.
 4. Configure webhook/callback/cron secrets in the hosting provider's secret manager.

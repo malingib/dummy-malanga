@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { supabaseAdmin } from '@/lib/supabase'
+import { db } from '@/lib/neon'
 
 async function workspaceId() {
   return (await cookies()).get('mobiwave_workspace_id')?.value || null
@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const id = await workspaceId()
     if (!id) return NextResponse.json({ error: 'Payment workspace not configured.' }, { status: 401 })
-    const { data, error } = await supabaseAdmin.from('payment_reconciliation_runs').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20)
+    const { data, error } = await db.from('payment_reconciliation_runs').select('*').eq('workspace_id', id).order('created_at', { ascending: false }).limit(20)
     if (error) throw error
     return NextResponse.json({ success: true, data: data || [] })
   } catch (error) {
@@ -28,11 +28,11 @@ export async function POST(request: NextRequest) {
     const start = body?.periodStart ? new Date(body.periodStart) : new Date(end.getTime() - 24 * 60 * 60 * 1000)
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) return NextResponse.json({ error: 'Invalid reconciliation period.' }, { status: 400 })
 
-    const { data, error } = await supabaseAdmin.rpc('reconcile_payment_workspace', { p_workspace_id: id, p_period_start: start.toISOString(), p_period_end: end.toISOString() })
+    const { data, error } = await db.rpc('reconcile_payment_workspace', { p_workspace_id: id, p_period_start: start.toISOString(), p_period_end: end.toISOString() })
     if (error) throw error
     const result = data as { run_id?: string } | null
     if (result?.run_id) {
-      const { error: exceptionError } = await supabaseAdmin.rpc('refresh_reconciliation_exceptions', { p_workspace_id: id, p_run_id: result.run_id })
+      const { error: exceptionError } = await db.rpc('refresh_reconciliation_exceptions', { p_workspace_id: id, p_run_id: result.run_id })
       if (exceptionError) throw exceptionError
     }
     return NextResponse.json({ success: true, data })

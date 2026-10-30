@@ -74,7 +74,7 @@ Avoid statements that imply MobiWave independently accepts, safeguards, settles 
 
 ## Technical separation
 
-The application keeps regulated-partner configuration server-side. The browser must never receive PSP credentials, Daraja secrets, settlement credentials or privileged service-role credentials.
+The application keeps regulated-partner configuration server-side. The browser must never receive PSP credentials, Daraja secrets, settlement credentials or the privileged database connection string.
 
 The API remains responsible for authentication, authorization, idempotency, callback processing, ledger persistence and audit-friendly operational records. The licensed PSP remains the regulated counterparty for the services assigned to it under the agreement.
 
